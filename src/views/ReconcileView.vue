@@ -2,13 +2,13 @@
   <div class="reconcile-view">
     <h2>帳單對帳</h2>
 
-    <div v-if="!results">
+    <div v-if="!reconcileStore.results">
       <div class="form-group">
         <label>帳單期間</label>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <input type="date" v-model="dateStart" />
+          <input type="date" v-model="reconcileStore.dateStart" />
           <span>～</span>
-          <input type="date" v-model="dateEnd" />
+          <input type="date" v-model="reconcileStore.dateEnd" />
         </div>
       </div>
 
@@ -35,7 +35,7 @@
       </div>
 
       <ReconcileResult
-        v-for="(item, idx) in results"
+        v-for="(item, idx) in reconcileStore.results"
         :key="idx"
         :item="item"
         @quick-add="quickAdd"
@@ -49,6 +49,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTransactionsStore } from '../stores/transactions.js'
+import { useReconcileStore } from '../stores/reconcile.js'
 import { parseStatement } from '../services/parsers/index.js'
 import { reconcile } from '../services/reconcile.js'
 import ReconcileResult from '../components/ReconcileResult.vue'
@@ -58,26 +59,30 @@ import * as pdfjsLib from 'pdfjs-dist'
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href
 
 const txStore = useTransactionsStore()
-const results = ref(null)
-const parsedBillItems = ref([])
+const reconcileStore = useReconcileStore()
 const needPassword = ref(false)
 const password = ref('')
 const loading = ref(false)
 let selectedFile = null
 
-const lastMonth = new Date()
-lastMonth.setMonth(lastMonth.getMonth() - 1)
-const dateStart = ref(lastMonth.toISOString().split('T')[0])
-const dateEnd = ref(new Date().toISOString().split('T')[0])
-
-const matchedCount = computed(() => results.value?.filter(r => r.status === 'matched').length || 0)
-const totalBillItems = computed(() => results.value?.filter(r => r.billItem).length || 0)
+const matchedCount = computed(() => reconcileStore.results?.filter(r => r.status === 'matched').length || 0)
+const totalBillItems = computed(() => reconcileStore.results?.filter(r => r.billItem).length || 0)
 const matchRate = computed(() => {
   if (!totalBillItems.value) return 0
   return Math.round((matchedCount.value / totalBillItems.value) * 100)
 })
 
-onMounted(() => txStore.loadAll())
+onMounted(() => {
+  txStore.loadAll()
+  if (!reconcileStore.dateStart) {
+    const lastMonth = new Date()
+    lastMonth.setMonth(lastMonth.getMonth() - 1)
+    reconcileStore.setDateRange(
+      lastMonth.toISOString().split('T')[0],
+      new Date().toISOString().split('T')[0]
+    )
+  }
+})
 
 function onFileSelect(e) {
   selectedFile = e.target.files[0]
@@ -110,11 +115,11 @@ async function processPdf() {
       return
     }
 
-    parsedBillItems.value = parsed
+    reconcileStore.setParsedBillItems(parsed)
 
     // Run reconciliation
-    const rangeTxs = txStore.getTransactionsByDateRange(dateStart.value, dateEnd.value)
-    results.value = reconcile(parsedBillItems.value, rangeTxs)
+    const rangeTxs = txStore.getTransactionsByDateRange(reconcileStore.dateStart, reconcileStore.dateEnd)
+    reconcileStore.setResults(reconcile(reconcileStore.parsedBillItems, rangeTxs))
   } catch (err) {
     if (err.name === 'PasswordException') {
       password.value = ''
@@ -140,13 +145,12 @@ async function quickAdd(billItem) {
     date: billItem.date,
     note: billItem.merchant
   })
-  const rangeTxs = txStore.getTransactionsByDateRange(dateStart.value, dateEnd.value)
-  results.value = reconcile(parsedBillItems.value, rangeTxs)
+  const rangeTxs = txStore.getTransactionsByDateRange(reconcileStore.dateStart, reconcileStore.dateEnd)
+  reconcileStore.setResults(reconcile(reconcileStore.parsedBillItems, rangeTxs))
 }
 
 function reset() {
-  results.value = null
-  parsedBillItems.value = []
+  reconcileStore.reset()
   needPassword.value = false
   password.value = ''
   selectedFile = null
