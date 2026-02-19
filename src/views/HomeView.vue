@@ -25,7 +25,19 @@
       </div>
     </div>
 
-    <!-- Card progress bars will be added in Phase 3 -->
+    <div v-if="cardsStore.cards.length">
+      <h3>卡片進度</h3>
+      <CardProgress
+        v-for="card in cardsStore.cards"
+        :key="card.id"
+        :card="card"
+        :spent="getCardSpent(card.id)"
+      />
+      <CardRecommend
+        :cards="cardsStore.cards"
+        :transactions="monthTxs"
+      />
+    </div>
 
     <h3>最近紀錄</h3>
     <div v-if="recentTx.length === 0" class="empty">還沒有紀錄</div>
@@ -45,9 +57,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTransactionsStore } from '../stores/transactions.js'
+import { useCardsStore } from '../stores/cards.js'
+import CardProgress from '../components/CardProgress.vue'
+import CardRecommend from '../components/CardRecommend.vue'
 
 const router = useRouter()
 const txStore = useTransactionsStore()
+const cardsStore = useCardsStore()
 
 const now = new Date()
 const year = ref(now.getFullYear())
@@ -59,6 +75,13 @@ const recentTx = computed(() =>
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 20)
 )
+const monthTxs = computed(() => txStore.getMonthTransactions(year.value, month.value))
+
+function getCardSpent(cardId) {
+  return txStore.getMonthTransactions(year.value, month.value)
+    .filter(t => t.cardId === cardId && t.type === 'expense')
+    .reduce((s, t) => s + t.amount, 0)
+}
 
 function prevMonth() {
   if (month.value === 1) { month.value = 12; year.value-- }
@@ -70,7 +93,10 @@ function nextMonth() {
 }
 function editTx(id) { router.push(`/add/${id}`) }
 
-onMounted(() => txStore.loadAll())
+onMounted(async () => {
+  await txStore.loadAll()
+  await cardsStore.init()
+})
 </script>
 
 <style scoped>

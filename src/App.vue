@@ -6,6 +6,7 @@
       <router-link to="/add" class="nav-item">記帳</router-link>
       <router-link to="/report" class="nav-item">報表</router-link>
       <router-link to="/cards" class="nav-item">卡片</router-link>
+      <router-link to="/reconcile" class="nav-item">對帳</router-link>
       <router-link to="/settings" class="nav-item">設定</router-link>
     </nav>
     <nav class="top-nav">
@@ -15,6 +16,7 @@
         <router-link to="/add" class="nav-item">記帳</router-link>
         <router-link to="/report" class="nav-item">報表</router-link>
         <router-link to="/cards" class="nav-item">卡片</router-link>
+        <router-link to="/reconcile" class="nav-item">對帳</router-link>
         <router-link to="/settings" class="nav-item">設定</router-link>
       </div>
     </nav>
