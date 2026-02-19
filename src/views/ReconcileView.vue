@@ -11,7 +11,10 @@
       <div v-if="needPassword" class="form-group">
         <label>PDF 密碼</label>
         <input type="password" v-model="password" placeholder="身分證字號或其他密碼" />
-        <button @click="processPdf">解鎖並匯入</button>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button @click="processPdf">解鎖並匯入</button>
+          <button @click="reset" style="background: #999;">重新選擇</button>
+        </div>
       </div>
 
       <div v-if="loading" class="loading">解析中...</div>
@@ -101,8 +104,12 @@ async function processPdf() {
     results.value = reconcile(parsedBillItems.value, monthTxs)
   } catch (err) {
     if (err.name === 'PasswordException') {
+      password.value = ''
       alert('密碼錯誤，請重新輸入')
     } else {
+      needPassword.value = false
+      password.value = ''
+      selectedFile = null
       alert('PDF 解析失敗：' + err.message)
     }
   } finally {
