@@ -10,8 +10,12 @@ export const useCardsStore = defineStore('cards', () => {
   }
 
   async function addCard(card) {
-    await addRecord('cards', card)
-    cards.value.push(card)
+    const newCard = { ...card }
+    if (!newCard.id) {
+      newCard.id = crypto.randomUUID()
+    }
+    await addRecord('cards', newCard)
+    cards.value.push(newCard)
   }
 
   async function editCard(card) {

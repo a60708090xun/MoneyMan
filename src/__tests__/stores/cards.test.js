@@ -26,6 +26,22 @@ describe('cards store', () => {
     expect(store.cards[0].name).toBe('測試卡')
   })
 
+  it('auto-generates UUID when adding card without id', async () => {
+    const store = useCardsStore()
+    await store.init()
+    await store.addCard({
+      name: 'UUID測試卡',
+      bank: '測試銀行',
+      billingCycleDay: 15,
+      thresholds: [],
+      channelRules: []
+    })
+    expect(store.cards).toHaveLength(1)
+    expect(store.cards[0].id).toBeDefined()
+    expect(typeof store.cards[0].id).toBe('string')
+    expect(store.cards[0].id.length).toBeGreaterThan(0)
+  })
+
   it('deletes a card', async () => {
     const store = useCardsStore()
     await store.init()

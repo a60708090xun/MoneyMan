@@ -15,10 +15,6 @@
     <div v-if="showForm" class="card-form">
       <h3>{{ editingCard ? '編輯' : '新增' }}信用卡</h3>
       <div class="form-group">
-        <label>卡片ID（英文）</label>
-        <input v-model="form.id" :disabled="!!editingCard" />
-      </div>
-      <div class="form-group">
         <label>名稱</label>
         <input v-model="form.name" />
       </div>
@@ -47,7 +43,7 @@ const txStore = useTransactionsStore()
 
 const showForm = ref(false)
 const editingCard = ref(null)
-const form = reactive({ id: '', name: '', bank: '', billingCycleDay: 1, thresholds: [], channelRules: [] })
+const form = reactive({ name: '', bank: '', billingCycleDay: 1, thresholds: [], channelRules: [] })
 
 onMounted(async () => {
   await cardsStore.init()
@@ -68,12 +64,13 @@ function editCard(card) {
 
 async function saveCard() {
   if (editingCard.value) {
-    await cardsStore.editCard({ ...form })
+    await cardsStore.editCard({ ...form, id: editingCard.value.id })
   } else {
     await cardsStore.addCard({ ...form })
   }
   showForm.value = false
   editingCard.value = null
+  Object.assign(form, { name: '', bank: '', billingCycleDay: 1, thresholds: [], channelRules: [] })
 }
 
 async function removeCard(id) {
