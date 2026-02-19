@@ -3,6 +3,15 @@
     <h2>帳單對帳</h2>
 
     <div v-if="!results">
+      <div class="form-group">
+        <label>帳單期間</label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="date" v-model="dateStart" />
+          <span>～</span>
+          <input type="date" v-model="dateEnd" />
+        </div>
+      </div>
+
       <div class="upload-area">
         <input type="file" accept=".pdf" @change="onFileSelect" ref="fileInput" hidden />
         <button class="upload-btn" @click="$refs.fileInput.click()">選擇 PDF 帳單</button>
@@ -56,6 +65,11 @@ const password = ref('')
 const loading = ref(false)
 let selectedFile = null
 
+const lastMonth = new Date()
+lastMonth.setMonth(lastMonth.getMonth() - 1)
+const dateStart = ref(lastMonth.toISOString().split('T')[0])
+const dateEnd = ref(new Date().toISOString().split('T')[0])
+
 const matchedCount = computed(() => results.value?.filter(r => r.status === 'matched').length || 0)
 const totalBillItems = computed(() => results.value?.filter(r => r.billItem).length || 0)
 const matchRate = computed(() => {
@@ -99,9 +113,8 @@ async function processPdf() {
     parsedBillItems.value = parsed
 
     // Run reconciliation
-    const now = new Date()
-    const monthTxs = txStore.getMonthTransactions(now.getFullYear(), now.getMonth() + 1)
-    results.value = reconcile(parsedBillItems.value, monthTxs)
+    const rangeTxs = txStore.getTransactionsByDateRange(dateStart.value, dateEnd.value)
+    results.value = reconcile(parsedBillItems.value, rangeTxs)
   } catch (err) {
     if (err.name === 'PasswordException') {
       password.value = ''
@@ -127,9 +140,8 @@ async function quickAdd(billItem) {
     date: billItem.date,
     note: billItem.merchant
   })
-  const now = new Date()
-  const monthTxs = txStore.getMonthTransactions(now.getFullYear(), now.getMonth() + 1)
-  results.value = reconcile(parsedBillItems.value, monthTxs)
+  const rangeTxs = txStore.getTransactionsByDateRange(dateStart.value, dateEnd.value)
+  results.value = reconcile(parsedBillItems.value, rangeTxs)
 }
 
 function reset() {

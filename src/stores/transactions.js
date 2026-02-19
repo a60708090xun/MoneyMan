@@ -47,6 +47,10 @@ export const useTransactionsStore = defineStore('transactions', () => {
     return breakdown
   }
 
+  function getTransactionsByDateRange(startDate, endDate) {
+    return transactions.value.filter(t => t.date && t.date >= startDate && t.date <= endDate)
+  }
+
   function getDailyTotals(year, month) {
     const txs = getMonthTransactions(year, month).filter(t => t.type === 'expense')
     const daily = {}
@@ -59,6 +63,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
 
   return {
     transactions, loadAll, addTransaction, editTransaction, deleteTransaction,
-    getMonthTransactions, getMonthlySummary, getCategoryBreakdown, getDailyTotals
+    getMonthTransactions, getTransactionsByDateRange, getMonthlySummary, getCategoryBreakdown, getDailyTotals
   }
 })
