@@ -47,6 +47,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mj
 
 const txStore = useTransactionsStore()
 const results = ref(null)
+const parsedBillItems = ref([])
 const needPassword = ref(false)
 const password = ref('')
 const loading = ref(false)
@@ -92,10 +93,12 @@ async function processPdf() {
       return
     }
 
+    parsedBillItems.value = parsed
+
     // Run reconciliation
     const now = new Date()
     const monthTxs = txStore.getMonthTransactions(now.getFullYear(), now.getMonth() + 1)
-    results.value = reconcile(parsed, monthTxs)
+    results.value = reconcile(parsedBillItems.value, monthTxs)
   } catch (err) {
     if (err.name === 'PasswordException') {
       alert('密碼錯誤，請重新輸入')
@@ -117,15 +120,14 @@ async function quickAdd(billItem) {
     date: billItem.date,
     note: billItem.merchant
   })
-  // Re-run reconciliation
   const now = new Date()
   const monthTxs = txStore.getMonthTransactions(now.getFullYear(), now.getMonth() + 1)
-  const billItems = results.value.filter(r => r.billItem).map(r => r.billItem)
-  results.value = reconcile(billItems, monthTxs)
+  results.value = reconcile(parsedBillItems.value, monthTxs)
 }
 
 function reset() {
   results.value = null
+  parsedBillItems.value = []
   needPassword.value = false
   password.value = ''
   selectedFile = null
