@@ -3,8 +3,11 @@ import { openDB } from 'idb'
 const DB_NAME = 'moneyman'
 const DB_VERSION = 1
 
+let dbInstance = null
+
 export async function initDB() {
-  return openDB(DB_NAME, DB_VERSION, {
+  if (dbInstance) return dbInstance
+  dbInstance = await openDB(DB_NAME, DB_VERSION, {
     upgrade(db) {
       if (!db.objectStoreNames.contains('transactions')) {
         const txStore = db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true })
@@ -20,6 +23,7 @@ export async function initDB() {
       }
     }
   })
+  return dbInstance
 }
 
 export async function addRecord(storeName, record) {
