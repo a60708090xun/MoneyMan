@@ -1,26 +1,33 @@
-const CLIENT_ID = '' // User must set this
 const SCOPES = 'https://www.googleapis.com/auth/drive.file'
 const FILE_NAME = 'moneyman-backup.json'
 
 let tokenClient = null
 let accessToken = null
+let clientId = localStorage.getItem('moneyman_gdrive_client_id') || ''
 
 export function isConfigured() {
-  return !!CLIENT_ID
+  return !!clientId
+}
+
+export function setClientId(id) {
+  clientId = id
+  localStorage.setItem('moneyman_gdrive_client_id', id)
+}
+
+export function getClientId() {
+  return clientId
 }
 
 export async function initGoogleAuth() {
+  if (!clientId) return
   return new Promise((resolve) => {
     const script = document.createElement('script')
     script.src = 'https://accounts.google.com/gsi/client'
     script.onload = () => {
       tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
+        client_id: clientId,
         scope: SCOPES,
-        callback: (response) => {
-          accessToken = response.access_token
-          resolve(response)
-        }
+        callback: () => {}
       })
       resolve()
     }
@@ -29,7 +36,21 @@ export async function initGoogleAuth() {
 }
 
 export function requestAuth() {
-  if (tokenClient) tokenClient.requestAccessToken()
+  return new Promise((resolve, reject) => {
+    if (!tokenClient) {
+      reject(new Error('Google 授權尚未初始化'))
+      return
+    }
+    tokenClient.callback = (response) => {
+      if (response.error) {
+        reject(new Error(response.error))
+        return
+      }
+      accessToken = response.access_token
+      resolve(response)
+    }
+    tokenClient.requestAccessToken()
+  })
 }
 
 export async function uploadBackup(data) {
@@ -38,7 +59,6 @@ export async function uploadBackup(data) {
   const json = JSON.stringify(data, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
 
-  // Check if file already exists
   const searchRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -46,7 +66,6 @@ export async function uploadBackup(data) {
   const searchData = await searchRes.json()
 
   if (searchData.files?.length > 0) {
-    // Update existing file
     const fileId = searchData.files[0].id
     await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
       method: 'PATCH',
@@ -54,7 +73,6 @@ export async function uploadBackup(data) {
       body: blob
     })
   } else {
-    // Create new file
     const metadata = { name: FILE_NAME, mimeType: 'application/json' }
     const form = new FormData()
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))

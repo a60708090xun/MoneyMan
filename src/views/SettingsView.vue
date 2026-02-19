@@ -16,10 +16,20 @@
 
     <section>
       <h3>Google Drive 同步</h3>
-      <p class="hint">手動上傳/下載資料，單一裝置修改後再同步。</p>
-      <div class="sync-buttons">
-        <button @click="upload" :disabled="syncing" class="upload-btn">📤 上傳備份</button>
-        <button @click="download" :disabled="syncing" class="download-btn">📥 下載還原</button>
+      <div v-if="!gdriveConfigured" class="gdrive-setup">
+        <p class="hint">請輸入 Google Cloud Console 的 OAuth Client ID 以啟用同步功能。</p>
+        <div class="add-cat">
+          <input v-model="gdriveClientId" placeholder="Google OAuth Client ID" />
+          <button @click="saveClientId">儲存</button>
+        </div>
+      </div>
+      <div v-else>
+        <p class="hint">手動上傳/下載資料，單一裝置修改後再同步。</p>
+        <div class="sync-buttons">
+          <button @click="upload" :disabled="syncing" class="upload-btn">📤 上傳備份</button>
+          <button @click="download" :disabled="syncing" class="download-btn">📥 下載還原</button>
+        </div>
+        <button @click="resetClientId" class="link-btn" style="margin-top: 8px; font-size: 12px;">重設 Client ID</button>
       </div>
       <div v-if="syncMsg" class="sync-msg">{{ syncMsg }}</div>
     </section>
@@ -36,7 +46,7 @@ import { ref, onMounted } from 'vue'
 import { useCategoriesStore } from '../stores/categories.js'
 import { useTransactionsStore } from '../stores/transactions.js'
 import { useCardsStore } from '../stores/cards.js'
-import { initGoogleAuth, requestAuth, uploadBackup, downloadBackup } from '../services/gdrive.js'
+import { initGoogleAuth, requestAuth, uploadBackup, downloadBackup, isConfigured, setClientId, getClientId } from '../services/gdrive.js'
 import { getRecords, clearStore, updateRecord } from '../services/db.js'
 
 const categoriesStore = useCategoriesStore()
@@ -46,10 +56,14 @@ const cardsStore = useCardsStore()
 const newCatName = ref('')
 const syncing = ref(false)
 const syncMsg = ref('')
+const gdriveConfigured = ref(isConfigured())
+const gdriveClientId = ref(getClientId())
 
 onMounted(async () => {
   await categoriesStore.init()
-  await initGoogleAuth()
+  if (gdriveConfigured.value) {
+    await initGoogleAuth()
+  }
 })
 
 async function addCat() {
@@ -62,14 +76,24 @@ async function deleteCat(id) {
   if (confirm('確定刪除？')) await categoriesStore.deleteCategory(id)
 }
 
+async function saveClientId() {
+  if (!gdriveClientId.value.trim()) return
+  setClientId(gdriveClientId.value.trim())
+  gdriveConfigured.value = true
+  await initGoogleAuth()
+}
+
+function resetClientId() {
+  setClientId('')
+  gdriveConfigured.value = false
+  gdriveClientId.value = ''
+}
+
 async function upload() {
   syncing.value = true
   syncMsg.value = ''
   try {
-    requestAuth()
-    // Wait a moment for auth callback
-    await new Promise(r => setTimeout(r, 2000))
-
+    await requestAuth()
     const data = {
       transactions: await getRecords('transactions'),
       cards: await getRecords('cards'),
@@ -89,15 +113,11 @@ async function download() {
   syncing.value = true
   syncMsg.value = ''
   try {
-    requestAuth()
-    await new Promise(r => setTimeout(r, 2000))
-
+    await requestAuth()
     const data = await downloadBackup()
     if (!data) { syncMsg.value = '沒有找到備份檔案'; return }
-
     if (!confirm('下載將覆蓋本地所有資料，確定繼續？')) return
 
-    // Restore data
     await clearStore('transactions')
     await clearStore('cards')
     await clearStore('categories')
