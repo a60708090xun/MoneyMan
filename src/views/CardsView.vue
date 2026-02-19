@@ -26,6 +26,35 @@
         <label>結算日（每月幾號）</label>
         <input type="number" v-model.number="form.billingCycleDay" min="1" max="31" />
       </div>
+      <!-- Channel Rules -->
+      <div class="form-group">
+        <label>通路回饋規則</label>
+        <div v-for="(rule, i) in form.channelRules" :key="i" class="rule-row">
+          <select v-model="rule.channel">
+            <option value="一般">一般</option>
+            <option value="網購">網購</option>
+            <option value="超商">超商</option>
+            <option value="餐飲">餐飲</option>
+            <option value="交通">交通</option>
+          </select>
+          <input type="number" v-model.number="rule.rate" step="0.01" placeholder="回饋率" style="width: 80px;" />
+          <input type="number" v-model.number="rule.monthlyCap" placeholder="月上限（選填）" style="width: 100px;" />
+          <button @click="form.channelRules.splice(i, 1)" class="delete-btn">✕</button>
+        </div>
+        <button @click="form.channelRules.push({ channel: '一般', rate: 0.01, monthlyCap: null })" class="add-rule-btn">+ 新增通路規則</button>
+      </div>
+
+      <!-- Thresholds -->
+      <div class="form-group">
+        <label>消費門檻</label>
+        <div v-for="(t, i) in form.thresholds" :key="i" class="rule-row">
+          <input type="number" v-model.number="t.amount" placeholder="門檻金額" style="width: 120px;" />
+          <input type="number" v-model.number="t.rewardValue" placeholder="回饋金額" style="width: 100px;" />
+          <button @click="form.thresholds.splice(i, 1)" class="delete-btn">✕</button>
+        </div>
+        <button @click="form.thresholds.push({ amount: 0, rewardValue: 0 })" class="add-rule-btn">+ 新增門檻</button>
+      </div>
+
       <button @click="saveCard">儲存</button>
       <button @click="showForm = false">取消</button>
     </div>
@@ -90,4 +119,8 @@ async function removeCard(id) {
 .form-group { margin-bottom: 8px; }
 .form-group label { display: block; font-size: 14px; color: #666; }
 .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+.rule-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; }
+.rule-row select, .rule-row input { padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+.delete-btn { background: none; border: none; color: #F44336; cursor: pointer; font-size: 16px; padding: 4px; }
+.add-rule-btn { background: none; border: 1px dashed #999; border-radius: 4px; padding: 6px 12px; cursor: pointer; color: #666; font-size: 13px; margin-top: 4px; }
 </style>
