@@ -37,7 +37,7 @@ import { useCategoriesStore } from '../stores/categories.js'
 import { useTransactionsStore } from '../stores/transactions.js'
 import { useCardsStore } from '../stores/cards.js'
 import { initGoogleAuth, requestAuth, uploadBackup, downloadBackup } from '../services/gdrive.js'
-import { getRecords, clearStore, addRecord } from '../services/db.js'
+import { getRecords, clearStore, updateRecord } from '../services/db.js'
 
 const categoriesStore = useCategoriesStore()
 const txStore = useTransactionsStore()
@@ -102,9 +102,9 @@ async function download() {
     await clearStore('cards')
     await clearStore('categories')
 
-    for (const tx of data.transactions || []) await addRecord('transactions', tx)
-    for (const card of data.cards || []) await addRecord('cards', card)
-    for (const cat of data.categories || []) await addRecord('categories', cat)
+    for (const tx of data.transactions || []) await updateRecord('transactions', tx)
+    for (const card of data.cards || []) await updateRecord('cards', card)
+    for (const cat of data.categories || []) await updateRecord('categories', cat)
 
     await txStore.loadAll()
     await cardsStore.init()
