@@ -3,13 +3,13 @@ import { ref } from 'vue'
 import { getRecords, addRecord, updateRecord, deleteRecord } from '../services/db.js'
 
 const DEFAULT_CATEGORIES = [
-  { name: '飲食', color: '#F44336', icon: '🍔' },
-  { name: '交通', color: '#2196F3', icon: '🚗' },
-  { name: '娛樂', color: '#9C27B0', icon: '🎮' },
-  { name: '購物', color: '#FF9800', icon: '🛍️' },
-  { name: '居家', color: '#795548', icon: '🏠' },
-  { name: '醫療', color: '#E91E63', icon: '💊' },
-  { name: '教育', color: '#3F51B5', icon: '📚' }
+  { name: '飲食', color: '#F44336', icon: '🍔', type: 'expense', parentId: null },
+  { name: '交通', color: '#2196F3', icon: '🚗', type: 'expense', parentId: null },
+  { name: '娛樂', color: '#9C27B0', icon: '🎮', type: 'expense', parentId: null },
+  { name: '購物', color: '#FF9800', icon: '🛍️', type: 'expense', parentId: null },
+  { name: '居家', color: '#795548', icon: '🏠', type: 'expense', parentId: null },
+  { name: '醫療', color: '#E91E63', icon: '💊', type: 'expense', parentId: null },
+  { name: '教育', color: '#3F51B5', icon: '📚', type: 'expense', parentId: null }
 ]
 
 export const useCategoriesStore = defineStore('categories', () => {
@@ -30,6 +30,7 @@ export const useCategoriesStore = defineStore('categories', () => {
   async function addCategory(cat) {
     const id = await addRecord('categories', cat)
     categories.value.push({ ...cat, id })
+    return id
   }
 
   async function editCategory(cat) {
@@ -43,5 +44,40 @@ export const useCategoriesStore = defineStore('categories', () => {
     categories.value = categories.value.filter(c => c.id !== id)
   }
 
-  return { categories, init, addCategory, editCategory, deleteCategory }
+  function getByType(type) {
+    return categories.value.filter(c => c.type === type)
+  }
+
+  function getParents(type) {
+    return categories.value.filter(c => c.parentId === null && c.type === type)
+  }
+
+  function getChildren(parentId) {
+    return categories.value.filter(c => c.parentId === parentId)
+  }
+
+  function getCategoryName(id) {
+    const cat = categories.value.find(c => c.id === id)
+    return cat ? cat.name : ''
+  }
+
+  function getFullCategoryName(categoryId, subcategoryId) {
+    const parent = getCategoryName(categoryId)
+    if (!subcategoryId) return parent
+    const sub = getCategoryName(subcategoryId)
+    return `${parent}/${sub}`
+  }
+
+  return {
+    categories,
+    init,
+    addCategory,
+    editCategory,
+    deleteCategory,
+    getByType,
+    getParents,
+    getChildren,
+    getCategoryName,
+    getFullCategoryName
+  }
 })
