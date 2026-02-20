@@ -5,8 +5,21 @@
     <section>
       <h3>分類管理</h3>
       <div v-for="cat in categoriesStore.categories" :key="cat.id" class="cat-item">
-        <span>{{ cat.icon }} {{ cat.name }}</span>
-        <button @click="deleteCat(cat.id)" class="delete-btn">刪除</button>
+        <template v-if="editingCatId === cat.id">
+          <div class="edit-cat">
+            <input v-model="editCatIcon" class="icon-input" />
+            <input v-model="editCatName" class="name-input" />
+            <button @click="saveEditCat(cat)" class="save-edit-btn">存</button>
+            <button @click="editingCatId = null" class="cancel-edit-btn">取消</button>
+          </div>
+        </template>
+        <template v-else>
+          <span>{{ cat.icon }} {{ cat.name }}</span>
+          <div class="cat-actions">
+            <button @click="startEditCat(cat)" class="edit-btn">編輯</button>
+            <button @click="deleteCat(cat.id)" class="delete-btn">刪除</button>
+          </div>
+        </template>
       </div>
       <div class="add-cat">
         <input v-model="newCatName" placeholder="新分類名稱" />
@@ -54,6 +67,9 @@ const txStore = useTransactionsStore()
 const cardsStore = useCardsStore()
 
 const newCatName = ref('')
+const editingCatId = ref(null)
+const editCatName = ref('')
+const editCatIcon = ref('')
 const syncing = ref(false)
 const syncMsg = ref('')
 const gdriveConfigured = ref(isConfigured())
@@ -70,6 +86,18 @@ async function addCat() {
   if (!newCatName.value.trim()) return
   await categoriesStore.addCategory({ name: newCatName.value.trim(), color: '#607D8B', icon: '📌' })
   newCatName.value = ''
+}
+
+function startEditCat(cat) {
+  editingCatId.value = cat.id
+  editCatName.value = cat.name
+  editCatIcon.value = cat.icon
+}
+
+async function saveEditCat(cat) {
+  if (!editCatName.value.trim()) return
+  await categoriesStore.editCategory({ ...cat, name: editCatName.value.trim(), icon: editCatIcon.value.trim() || cat.icon })
+  editingCatId.value = null
 }
 
 async function deleteCat(id) {
@@ -137,7 +165,14 @@ async function download() {
 .settings-view { max-width: 480px; margin: 0 auto; }
 section { margin-bottom: 24px; }
 .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.cat-actions { display: flex; gap: 8px; }
+.edit-btn { background: none; border: none; color: #2196F3; cursor: pointer; }
 .delete-btn { background: none; border: none; color: #F44336; cursor: pointer; }
+.edit-cat { display: flex; gap: 4px; align-items: center; width: 100%; }
+.icon-input { width: 40px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
+.name-input { flex: 1; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; }
+.save-edit-btn { padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.cancel-edit-btn { padding: 4px 8px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
 .add-cat { display: flex; gap: 8px; margin-top: 8px; }
 .add-cat input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
 .add-cat button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }

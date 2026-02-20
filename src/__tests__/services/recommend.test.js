@@ -72,4 +72,23 @@ describe('recommend engine', () => {
     // card-a is $500 from 10000 threshold (gets $500 bonus)
     expect(result[0].cardId).toBe('card-a')
   })
+
+  it('includes daysRemaining in score calculation', () => {
+    // Two identical cards with different billing cycle days
+    const cards = [
+      { id: 'soon', name: '快到期', billingCycleDay: 3, thresholds: [], channelRules: [{ channel: '一般', rate: 0.02, monthlyCap: null }] },
+      { id: 'later', name: '還很久', billingCycleDay: 28, thresholds: [], channelRules: [{ channel: '一般', rate: 0.02, monthlyCap: null }] }
+    ]
+    const result = recommendCard({
+      cards,
+      channel: '一般',
+      amount: 1000,
+      currentSpending: {},
+      currentChannelSpending: {},
+      today: new Date('2026-02-01') // cycleDay 3 = 2 days left, cycleDay 28 = 27 days left
+    })
+    // Card with more days remaining should rank higher
+    expect(result[0].cardId).toBe('later')
+    expect(result[0].daysRemaining).toBeGreaterThan(result[1].daysRemaining)
+  })
 })

@@ -60,6 +60,8 @@
     <button class="save-btn" @click="save" :disabled="!form.amount">
       {{ isEdit ? '更新' : '儲存' }}
     </button>
+
+    <button v-if="isEdit" class="delete-btn" @click="remove">刪除此筆</button>
   </div>
 </template>
 
@@ -108,6 +110,16 @@ async function save() {
   }
   router.push('/')
 }
+
+async function remove() {
+  if (!confirm('確定刪除這筆紀錄？')) return
+  try {
+    await txStore.deleteTransaction(Number(route.params.id))
+    router.push('/')
+  } catch (e) {
+    alert('刪除失敗：' + e.message)
+  }
+}
 </script>
 
 <style scoped>
@@ -134,4 +146,9 @@ async function save() {
   border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 16px;
 }
 .save-btn:disabled { background: #ccc; }
+.delete-btn {
+  width: 100%; padding: 14px; background: none; color: #F44336;
+  border: 1px solid #F44336; border-radius: 8px; font-size: 16px;
+  cursor: pointer; margin-top: 8px;
+}
 </style>

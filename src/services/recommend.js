@@ -44,10 +44,11 @@ export function recommendCard({ cards, channel, amount, currentSpending, current
       ? cycleDay - todayDay
       : new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - todayDay + cycleDay
 
-    // Score: effective reward + threshold bonus, penalized if cap nearly full
+    // Score: effective reward + threshold bonus, penalized if cap nearly full or cycle ending soon
     const totalReward = effectiveReward + thresholdBonus
     const capRatio = rule.monthlyCap != null ? capRemaining / rule.monthlyCap : 1
-    const score = totalReward * (0.5 + 0.5 * capRatio)
+    const daysFactor = Math.min(daysRemaining / 30, 1) // 0~1, more days remaining = better
+    const score = totalReward * (0.4 + 0.3 * capRatio + 0.3 * daysFactor)
 
     return {
       cardId: card.id,
