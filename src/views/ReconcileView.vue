@@ -148,11 +148,13 @@ async function quickAdd(billItem) {
   await txStore.addTransaction({
     amount: billItem.amount,
     type: 'expense',
-    category: '',
+    category: null,
+    subcategory: null,
     channel: '一般',
     cardId: null,
     date: billItem.date,
-    note: billItem.merchant
+    note: billItem.merchant,
+    account: null
   })
   const rangeTxs = txStore.getTransactionsByDateRange(reconcileStore.dateStart, reconcileStore.dateEnd)
   reconcileStore.setResults(reconcile(reconcileStore.parsedBillItems, rangeTxs))

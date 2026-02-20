@@ -43,7 +43,7 @@
     <div v-if="recentTx.length === 0" class="empty">還沒有紀錄</div>
     <div v-for="tx in recentTx" :key="tx.id" class="tx-item" @click="editTx(tx.id)">
       <div class="tx-left">
-        <span class="tx-category">{{ tx.category }}</span>
+        <span class="tx-category">{{ categoriesStore.getFullCategoryName(tx.category, tx.subcategory) }}</span>
         <span class="tx-note">{{ tx.note || tx.channel || '' }}</span>
       </div>
       <span :class="tx.type === 'income' ? 'income' : 'expense'">
@@ -57,12 +57,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTransactionsStore } from '../stores/transactions.js'
+import { useCategoriesStore } from '../stores/categories.js'
 import { useCardsStore } from '../stores/cards.js'
 import CardProgress from '../components/CardProgress.vue'
 import CardRecommend from '../components/CardRecommend.vue'
 
 const router = useRouter()
 const txStore = useTransactionsStore()
+const categoriesStore = useCategoriesStore()
 const cardsStore = useCardsStore()
 
 const now = new Date()
@@ -94,6 +96,7 @@ function nextMonth() {
 function editTx(id) { router.push(`/add/${id}`) }
 
 onMounted(async () => {
+  await categoriesStore.init()
   await txStore.loadAll()
   await cardsStore.init()
 })

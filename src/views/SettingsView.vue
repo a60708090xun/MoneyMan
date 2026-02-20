@@ -4,27 +4,59 @@
 
     <section>
       <h3>分類管理</h3>
-      <div v-for="cat in categoriesStore.categories" :key="cat.id" class="cat-item">
-        <template v-if="editingCatId === cat.id">
-          <div class="edit-cat">
-            <input v-model="editCatIcon" class="icon-input" />
-            <input v-model="editCatName" class="name-input" />
-            <button @click="saveEditCat(cat)" class="save-edit-btn">存</button>
-            <button @click="editingCatId = null" class="cancel-edit-btn">取消</button>
-          </div>
-        </template>
-        <template v-else>
-          <span>{{ cat.icon }} {{ cat.name }}</span>
-          <div class="cat-actions">
-            <button @click="startEditCat(cat)" class="edit-btn">編輯</button>
-            <button @click="deleteCat(cat.id)" class="delete-btn">刪除</button>
-          </div>
-        </template>
+      <div class="type-tabs">
+        <button :class="{ active: catTypeTab === 'expense' }" @click="catTypeTab = 'expense'">支出</button>
+        <button :class="{ active: catTypeTab === 'income' }" @click="catTypeTab = 'income'">收入</button>
+      </div>
+      <div v-for="parent in displayParents" :key="parent.id" class="cat-group">
+        <div class="cat-item parent-cat">
+          <template v-if="editingCatId === parent.id">
+            <div class="edit-cat">
+              <input v-model="editCatIcon" class="icon-input" />
+              <input v-model="editCatName" class="name-input" />
+              <button @click="saveEditCat(parent)" class="save-edit-btn">存</button>
+              <button @click="editingCatId = null" class="cancel-edit-btn">取消</button>
+            </div>
+          </template>
+          <template v-else>
+            <span>{{ parent.icon }} <strong>{{ parent.name }}</strong></span>
+            <div class="cat-actions">
+              <button @click="startEditCat(parent)" class="edit-btn">編輯</button>
+              <button @click="deleteCat(parent.id)" class="delete-btn">刪除</button>
+            </div>
+          </template>
+        </div>
+        <div v-for="child in categoriesStore.getChildren(parent.id)" :key="child.id" class="cat-item child-cat">
+          <template v-if="editingCatId === child.id">
+            <div class="edit-cat">
+              <input v-model="editCatIcon" class="icon-input" />
+              <input v-model="editCatName" class="name-input" />
+              <button @click="saveEditCat(child)" class="save-edit-btn">存</button>
+              <button @click="editingCatId = null" class="cancel-edit-btn">取消</button>
+            </div>
+          </template>
+          <template v-else>
+            <span>└ {{ child.icon }} {{ child.name }}</span>
+            <div class="cat-actions">
+              <button @click="startEditCat(child)" class="edit-btn">編輯</button>
+              <button @click="deleteCat(child.id)" class="delete-btn">刪除</button>
+            </div>
+          </template>
+        </div>
       </div>
       <div class="add-cat">
-        <input v-model="newCatName" placeholder="新分類名稱" />
+        <select v-model="newCatParentId" class="parent-select">
+          <option :value="null">新增大分類</option>
+          <option v-for="p in displayParents" :key="p.id" :value="p.id">{{ p.name }} 的子分類</option>
+        </select>
+        <input v-model="newCatName" placeholder="分類名稱" />
         <button @click="addCat">新增</button>
       </div>
+    </section>
+
+    <section>
+      <h3>匯入 CWMoney 資料</h3>
+      <ImportCWMoney />
     </section>
 
     <section>
@@ -55,8 +87,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useCategoriesStore } from '../stores/categories.js'
+import ImportCWMoney from '../components/ImportCWMoney.vue'
 import { useTransactionsStore } from '../stores/transactions.js'
 import { useCardsStore } from '../stores/cards.js'
 import { initGoogleAuth, requestAuth, uploadBackup, downloadBackup, isConfigured, setClientId, getClientId } from '../services/gdrive.js'
@@ -67,9 +100,13 @@ const txStore = useTransactionsStore()
 const cardsStore = useCardsStore()
 
 const newCatName = ref('')
+const newCatParentId = ref(null)
+const catTypeTab = ref('expense')
 const editingCatId = ref(null)
 const editCatName = ref('')
 const editCatIcon = ref('')
+
+const displayParents = computed(() => categoriesStore.getParents(catTypeTab.value))
 const syncing = ref(false)
 const syncMsg = ref('')
 const gdriveConfigured = ref(isConfigured())
@@ -84,8 +121,15 @@ onMounted(async () => {
 
 async function addCat() {
   if (!newCatName.value.trim()) return
-  await categoriesStore.addCategory({ name: newCatName.value.trim(), color: '#607D8B', icon: '📌' })
+  await categoriesStore.addCategory({
+    name: newCatName.value.trim(),
+    color: '#607D8B',
+    icon: '📌',
+    type: catTypeTab.value,
+    parentId: newCatParentId.value
+  })
   newCatName.value = ''
+  newCatParentId.value = null
 }
 
 function startEditCat(cat) {
@@ -183,4 +227,11 @@ section { margin-bottom: 24px; }
 .download-btn { background: #FF9800; color: white; }
 .sync-msg { margin-top: 8px; padding: 8px; background: #E8F5E9; border-radius: 4px; font-size: 13px; }
 .link-btn { display: block; text-align: center; padding: 12px; background: #f5f5f5; border-radius: 8px; text-decoration: none; color: #333; }
+.type-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.type-tabs button { flex: 1; padding: 6px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; }
+.type-tabs button.active { background: #4CAF50; color: white; border-color: #4CAF50; }
+.cat-group { margin-bottom: 4px; }
+.parent-cat { font-weight: 500; }
+.child-cat { padding-left: 16px; }
+.parent-select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
 </style>

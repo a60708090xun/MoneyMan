@@ -3,8 +3,8 @@
     <h2>{{ isEdit ? '編輯紀錄' : '新增紀錄' }}</h2>
 
     <div class="type-toggle">
-      <button :class="{ active: form.type === 'expense' }" @click="form.type = 'expense'">支出</button>
-      <button :class="{ active: form.type === 'income' }" @click="form.type = 'income'">收入</button>
+      <button :class="{ active: form.type === 'expense' }" @click="switchType('expense')">支出</button>
+      <button :class="{ active: form.type === 'income' }" @click="switchType('income')">收入</button>
     </div>
 
     <div class="form-group">
@@ -18,13 +18,27 @@
     </div>
 
     <div class="form-group">
-      <label>分類</label>
+      <label>大分類</label>
       <div class="category-grid">
         <button
-          v-for="cat in categoriesStore.categories"
+          v-for="cat in parentCategories"
           :key="cat.id"
-          :class="{ active: form.category === cat.name }"
-          @click="form.category = cat.name"
+          :class="{ active: form.category === cat.id }"
+          @click="selectParent(cat.id)"
+        >
+          {{ cat.icon }} {{ cat.name }}
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group" v-if="childCategories.length">
+      <label>子分類</label>
+      <div class="category-grid">
+        <button
+          v-for="cat in childCategories"
+          :key="cat.id"
+          :class="{ active: form.subcategory === cat.id }"
+          @click="form.subcategory = cat.id"
         >
           {{ cat.icon }} {{ cat.name }}
         </button>
@@ -50,6 +64,11 @@
           {{ card.name }}
         </option>
       </select>
+    </div>
+
+    <div class="form-group">
+      <label>帳戶</label>
+      <input type="text" v-model="form.account" placeholder="現金" />
     </div>
 
     <div class="form-group">
@@ -85,12 +104,34 @@ const today = new Date().toISOString().split('T')[0]
 const form = reactive({
   amount: null,
   type: 'expense',
-  category: '',
+  category: null,
+  subcategory: null,
   channel: '一般',
   cardId: null,
   date: today,
-  note: ''
+  note: '',
+  account: '現金'
 })
+
+const parentCategories = computed(() => categoriesStore.getParents(form.type))
+const childCategories = computed(() => {
+  if (!form.category) return []
+  return categoriesStore.getChildren(form.category)
+})
+
+function selectParent(id) {
+  form.category = id
+  const children = categoriesStore.getChildren(id)
+  form.subcategory = children.length > 0 ? children[0].id : null
+}
+
+function switchType(type) {
+  form.type = type
+  form.category = null
+  form.subcategory = null
+  const parents = categoriesStore.getParents(type)
+  if (parents.length) selectParent(parents[0].id)
+}
 
 onMounted(async () => {
   await categoriesStore.init()
@@ -98,6 +139,9 @@ onMounted(async () => {
   if (route.params.id) {
     const tx = await getRecord('transactions', Number(route.params.id))
     if (tx) Object.assign(form, tx)
+  } else {
+    const parents = categoriesStore.getParents(form.type)
+    if (parents.length) selectParent(parents[0].id)
   }
 })
 
