@@ -92,10 +92,12 @@ function editCard(card) {
 }
 
 async function saveCard() {
+  if (!form.name.trim() || !form.bank.trim()) return
+  const cleanData = JSON.parse(JSON.stringify(form))
   if (editingCard.value) {
-    await cardsStore.editCard({ ...form, id: editingCard.value.id })
+    await cardsStore.editCard({ ...cleanData, id: editingCard.value.id })
   } else {
-    await cardsStore.addCard({ ...form })
+    await cardsStore.addCard(cleanData)
   }
   showForm.value = false
   editingCard.value = null

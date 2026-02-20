@@ -51,10 +51,3 @@ export function reconcile(billItems, manualRecords) {
 
   return results
 }
-
-export function getMatchRate(results) {
-  const billCount = results.filter(r => r.billItem).length
-  if (billCount === 0) return 0
-  const matched = results.filter(r => r.status === 'matched').length
-  return matched / billCount
-}

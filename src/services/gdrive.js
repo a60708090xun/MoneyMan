@@ -4,6 +4,7 @@ const FILE_NAME = 'moneyman-backup.json'
 let tokenClient = null
 let accessToken = null
 let clientId = localStorage.getItem('moneyman_gdrive_client_id') || ''
+let authInitialized = false
 
 export function isConfigured() {
   return !!clientId
@@ -12,6 +13,7 @@ export function isConfigured() {
 export function setClientId(id) {
   clientId = id
   localStorage.setItem('moneyman_gdrive_client_id', id)
+  authInitialized = false
 }
 
 export function getClientId() {
@@ -19,7 +21,8 @@ export function getClientId() {
 }
 
 export async function initGoogleAuth() {
-  if (!clientId) return
+  if (!clientId || authInitialized) return
+  authInitialized = true
   return new Promise((resolve) => {
     const script = document.createElement('script')
     script.src = 'https://accounts.google.com/gsi/client'
@@ -53,13 +56,22 @@ export function requestAuth() {
   })
 }
 
+async function checkedFetch(url, options) {
+  const res = await fetch(url, options)
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Google Drive API ${res.status}: ${errText}`)
+  }
+  return res
+}
+
 export async function uploadBackup(data) {
   if (!accessToken) throw new Error('未授權')
 
   const json = JSON.stringify(data, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
 
-  const searchRes = await fetch(
+  const searchRes = await checkedFetch(
     `https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   )
@@ -67,7 +79,7 @@ export async function uploadBackup(data) {
 
   if (searchData.files?.length > 0) {
     const fileId = searchData.files[0].id
-    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+    await checkedFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: blob
@@ -77,7 +89,7 @@ export async function uploadBackup(data) {
     const form = new FormData()
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
     form.append('file', blob)
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    await checkedFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
       body: form
@@ -88,7 +100,7 @@ export async function uploadBackup(data) {
 export async function downloadBackup() {
   if (!accessToken) throw new Error('未授權')
 
-  const searchRes = await fetch(
+  const searchRes = await checkedFetch(
     `https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   )
@@ -97,7 +109,7 @@ export async function downloadBackup() {
   if (!searchData.files?.length) return null
 
   const fileId = searchData.files[0].id
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+  const res = await checkedFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   })
   return res.json()

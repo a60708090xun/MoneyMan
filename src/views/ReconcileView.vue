@@ -87,7 +87,7 @@ onMounted(() => {
 function onFileSelect(e) {
   selectedFile = e.target.files[0]
   if (selectedFile) {
-    needPassword.value = true
+    processPdf()
   }
 }
 
@@ -122,8 +122,8 @@ async function processPdf() {
     reconcileStore.setResults(reconcile(reconcileStore.parsedBillItems, rangeTxs))
   } catch (err) {
     if (err.name === 'PasswordException') {
+      needPassword.value = true
       password.value = ''
-      alert('密碼錯誤，請重新輸入')
     } else {
       needPassword.value = false
       password.value = ''

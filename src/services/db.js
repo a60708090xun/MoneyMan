@@ -62,3 +62,15 @@ export async function clearStore(storeName) {
   await tx.objectStore(storeName).clear()
   await tx.done
 }
+
+export async function bulkRestore(data) {
+  const db = await initDB()
+  const tx = db.transaction(['transactions', 'cards', 'categories'], 'readwrite')
+  await tx.objectStore('transactions').clear()
+  await tx.objectStore('cards').clear()
+  await tx.objectStore('categories').clear()
+  for (const item of data.transactions || []) await tx.objectStore('transactions').put(item)
+  for (const card of data.cards || []) await tx.objectStore('cards').put(card)
+  for (const cat of data.categories || []) await tx.objectStore('categories').put(cat)
+  await tx.done
+}

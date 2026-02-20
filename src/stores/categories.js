@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getRecords, addRecord, deleteRecord } from '../services/db.js'
+import { getRecords, addRecord, updateRecord, deleteRecord } from '../services/db.js'
 
 const DEFAULT_CATEGORIES = [
   { name: '飲食', color: '#F44336', icon: '🍔' },
@@ -32,10 +32,16 @@ export const useCategoriesStore = defineStore('categories', () => {
     categories.value.push({ ...cat, id })
   }
 
+  async function editCategory(cat) {
+    await updateRecord('categories', cat)
+    const idx = categories.value.findIndex(c => c.id === cat.id)
+    if (idx !== -1) categories.value[idx] = { ...cat }
+  }
+
   async function deleteCategory(id) {
     await deleteRecord('categories', id)
     categories.value = categories.value.filter(c => c.id !== id)
   }
 
-  return { categories, init, addCategory, deleteCategory }
+  return { categories, init, addCategory, editCategory, deleteCategory }
 })

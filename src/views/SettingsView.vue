@@ -47,7 +47,7 @@ import { useCategoriesStore } from '../stores/categories.js'
 import { useTransactionsStore } from '../stores/transactions.js'
 import { useCardsStore } from '../stores/cards.js'
 import { initGoogleAuth, requestAuth, uploadBackup, downloadBackup, isConfigured, setClientId, getClientId } from '../services/gdrive.js'
-import { getRecords, clearStore, updateRecord } from '../services/db.js'
+import { getRecords, bulkRestore } from '../services/db.js'
 
 const categoriesStore = useCategoriesStore()
 const txStore = useTransactionsStore()
@@ -118,13 +118,7 @@ async function download() {
     if (!data) { syncMsg.value = '沒有找到備份檔案'; return }
     if (!confirm('下載將覆蓋本地所有資料，確定繼續？')) return
 
-    await clearStore('transactions')
-    await clearStore('cards')
-    await clearStore('categories')
-
-    for (const tx of data.transactions || []) await updateRecord('transactions', tx)
-    for (const card of data.cards || []) await updateRecord('cards', card)
-    for (const cat of data.categories || []) await updateRecord('categories', cat)
+    await bulkRestore(data)
 
     await txStore.loadAll()
     await cardsStore.init()

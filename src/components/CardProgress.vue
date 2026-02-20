@@ -4,6 +4,9 @@
       <span class="card-name">{{ card.name }}</span>
       <span class="card-bank">{{ card.bank }}</span>
     </div>
+    <div v-if="!card.thresholds?.length" class="bar-label">
+      本期消費 ${{ spent.toLocaleString() }}
+    </div>
     <div v-for="threshold in card.thresholds" :key="threshold.amount" class="threshold-bar">
       <div class="bar-bg">
         <div class="bar-fill" :style="{ width: progressPercent(threshold) + '%' }"></div>

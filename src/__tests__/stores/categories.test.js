@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useCategoriesStore } from '../../stores/categories.js'
+import { clearStore } from '../../services/db.js'
 
 describe('categories store', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
+    await clearStore('categories')
   })
 
   it('loads default categories', async () => {
