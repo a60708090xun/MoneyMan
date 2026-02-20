@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getRecords, addRecord, updateRecord, deleteRecord } from '../services/db.js'
+import { useCategoriesStore } from './categories.js'
 
 export const useTransactionsStore = defineStore('transactions', () => {
   const transactions = ref([])
@@ -39,10 +40,12 @@ export const useTransactionsStore = defineStore('transactions', () => {
   }
 
   function getCategoryBreakdown(year, month) {
+    const catStore = useCategoriesStore()
     const txs = getMonthTransactions(year, month).filter(t => t.type === 'expense')
     const breakdown = {}
     for (const t of txs) {
-      breakdown[t.category] = (breakdown[t.category] || 0) + t.amount
+      const name = catStore.getCategoryName(t.category) || '未分類'
+      breakdown[name] = (breakdown[name] || 0) + t.amount
     }
     return breakdown
   }
@@ -61,8 +64,18 @@ export const useTransactionsStore = defineStore('transactions', () => {
     return daily
   }
 
+  function isDuplicate({ amount, category, subcategory, date }) {
+    return transactions.value.some(t =>
+      t.date === date &&
+      t.amount === amount &&
+      t.category === category &&
+      (t.subcategory ?? null) === (subcategory ?? null)
+    )
+  }
+
   return {
     transactions, loadAll, addTransaction, editTransaction, deleteTransaction,
-    getMonthTransactions, getTransactionsByDateRange, getMonthlySummary, getCategoryBreakdown, getDailyTotals
+    getMonthTransactions, getTransactionsByDateRange, getMonthlySummary, getCategoryBreakdown, getDailyTotals,
+    isDuplicate
   }
 })
