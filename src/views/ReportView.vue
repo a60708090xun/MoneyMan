@@ -25,10 +25,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTransactionsStore } from '../stores/transactions.js'
+import { useCategoriesStore } from '../stores/categories.js'
 import PieChart from '../components/PieChart.vue'
 import BarChart from '../components/BarChart.vue'
 
 const txStore = useTransactionsStore()
+const categoriesStore = useCategoriesStore()
 const now = new Date()
 const year = ref(now.getFullYear())
 const month = ref(now.getMonth() + 1)
@@ -47,7 +49,10 @@ function nextMonth() {
   else month.value++
 }
 
-onMounted(() => txStore.loadAll())
+onMounted(async () => {
+  await categoriesStore.init()
+  await txStore.loadAll()
+})
 </script>
 
 <style scoped>
