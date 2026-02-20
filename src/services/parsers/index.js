@@ -1,7 +1,13 @@
 import { ManualParser } from './manual-parser.js'
+import { CathayParser } from './cathay-parser.js'
+import { EsunParser } from './esun-parser.js'
 
 const parsers = []
 const manualParser = new ManualParser()
+
+// Register built-in parsers
+registerParser(new CathayParser())
+registerParser(new EsunParser())
 
 export function registerParser(parser) {
   parsers.push(parser)

@@ -26,6 +26,13 @@
         </div>
       </div>
 
+      <ManualMapping
+        v-if="manualLines"
+        :lines="manualLines"
+        @mapped="onManualMapped"
+        @cancel="manualLines = null"
+      />
+
       <div v-if="loading" class="loading">解析中...</div>
     </div>
 
@@ -53,6 +60,7 @@ import { useReconcileStore } from '../stores/reconcile.js'
 import { parseStatement } from '../services/parsers/index.js'
 import { reconcile } from '../services/reconcile.js'
 import ReconcileResult from '../components/ReconcileResult.vue'
+import ManualMapping from '../components/ManualMapping.vue'
 import * as pdfjsLib from 'pdfjs-dist'
 
 // Set worker path for pdf.js
@@ -63,6 +71,7 @@ const reconcileStore = useReconcileStore()
 const needPassword = ref(false)
 const password = ref('')
 const loading = ref(false)
+const manualLines = ref(null)
 let selectedFile = null
 
 const matchedCount = computed(() => reconcileStore.results?.filter(r => r.status === 'matched').length || 0)
@@ -110,7 +119,7 @@ async function processPdf() {
     const parsed = parseStatement(fullText)
 
     if (parsed.raw) {
-      alert('無法自動辨識銀行格式，請手動對應欄位（功能開發中）')
+      manualLines.value = parsed.lines
       loading.value = false
       return
     }
@@ -149,10 +158,18 @@ async function quickAdd(billItem) {
   reconcileStore.setResults(reconcile(reconcileStore.parsedBillItems, rangeTxs))
 }
 
+function onManualMapped(items) {
+  manualLines.value = null
+  reconcileStore.setParsedBillItems(items)
+  const rangeTxs = txStore.getTransactionsByDateRange(reconcileStore.dateStart, reconcileStore.dateEnd)
+  reconcileStore.setResults(reconcile(reconcileStore.parsedBillItems, rangeTxs))
+}
+
 function reset() {
   reconcileStore.reset()
   needPassword.value = false
   password.value = ''
+  manualLines.value = null
   selectedFile = null
 }
 </script>
