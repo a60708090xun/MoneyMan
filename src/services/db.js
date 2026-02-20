@@ -1,29 +1,100 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'moneyman'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbInstance = null
+
+export function resetDB() {
+  if (dbInstance) {
+    dbInstance.close()
+    dbInstance = null
+  }
+}
 
 export async function initDB() {
   if (dbInstance) return dbInstance
   dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('transactions')) {
+    upgrade(db, oldVersion, _newVersion, transaction) {
+      if (oldVersion < 1) {
+        // Fresh install: create all stores with all indexes
         const txStore = db.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true })
         txStore.createIndex('date', 'date')
         txStore.createIndex('category', 'category')
         txStore.createIndex('cardId', 'cardId')
-      }
-      if (!db.objectStoreNames.contains('cards')) {
+        txStore.createIndex('subcategory', 'subcategory')
+
         db.createObjectStore('cards', { keyPath: 'id' })
+
+        const catStore = db.createObjectStore('categories', { keyPath: 'id', autoIncrement: true })
+        catStore.createIndex('parentId', 'parentId')
+        catStore.createIndex('type', 'type')
       }
-      if (!db.objectStoreNames.contains('categories')) {
-        db.createObjectStore('categories', { keyPath: 'id', autoIncrement: true })
+      if (oldVersion >= 1 && oldVersion < 2) {
+        // Upgrade from v1: add new indexes to existing stores
+        const txStore = transaction.objectStore('transactions')
+        if (!txStore.indexNames.contains('subcategory')) {
+          txStore.createIndex('subcategory', 'subcategory')
+        }
+
+        const catStore = transaction.objectStore('categories')
+        if (!catStore.indexNames.contains('parentId')) {
+          catStore.createIndex('parentId', 'parentId')
+        }
+        if (!catStore.indexNames.contains('type')) {
+          catStore.createIndex('type', 'type')
+        }
       }
     }
   })
   return dbInstance
+}
+
+export async function migrateData() {
+  const db = await initDB()
+
+  // Step A: Migrate categories — add type and parentId if missing
+  const allCategories = await db.getAll('categories')
+  const needsCategoryMigration = allCategories.some(cat => cat.type === undefined)
+  if (needsCategoryMigration) {
+    const catTx = db.transaction('categories', 'readwrite')
+    const catStore = catTx.objectStore('categories')
+    for (const cat of allCategories) {
+      if (cat.type === undefined) {
+        await catStore.put({ ...cat, type: 'expense', parentId: null })
+      }
+    }
+    await catTx.done
+  }
+
+  // Step B: Build name→id map from parent categories (parentId is null)
+  const updatedCategories = await db.getAll('categories')
+  const nameToId = new Map()
+  for (const cat of updatedCategories) {
+    if (cat.parentId === null || cat.parentId === undefined) {
+      nameToId.set(cat.name, cat.id)
+    }
+  }
+
+  // Step C: Migrate transactions — convert string category to id
+  const allTransactions = await db.getAll('transactions')
+  const needsTransactionMigration = allTransactions.some(tx => typeof tx.category === 'string')
+  if (needsTransactionMigration) {
+    const txTx = db.transaction('transactions', 'readwrite')
+    const txStore = txTx.objectStore('transactions')
+    for (const record of allTransactions) {
+      if (typeof record.category === 'string') {
+        const categoryId = nameToId.get(record.category) ?? null
+        await txStore.put({
+          ...record,
+          category: categoryId,
+          subcategory: null,
+          account: null
+        })
+      }
+    }
+    await txTx.done
+  }
 }
 
 export async function addRecord(storeName, record) {
