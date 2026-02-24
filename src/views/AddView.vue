@@ -2,6 +2,20 @@
   <div class="add-view">
     <h2>{{ isEdit ? '編輯紀錄' : '新增紀錄' }}</h2>
 
+    <div v-if="templatesStore.templates.length" class="template-selector">
+      <label>快速填入</label>
+      <div class="template-scroll">
+        <button
+          v-for="tpl in templatesStore.templates"
+          :key="tpl.id"
+          class="template-btn"
+          @click="applyTemplate(tpl)"
+        >
+          {{ getCategoryIcon(tpl.category) }} {{ tpl.name }}
+        </button>
+      </div>
+    </div>
+
     <div class="type-toggle">
       <button :class="{ active: form.type === 'expense' }" @click="switchType('expense')">支出</button>
       <button :class="{ active: form.type === 'income' }" @click="switchType('income')">收入</button>
@@ -80,6 +94,10 @@
       {{ isEdit ? '更新' : '儲存' }}
     </button>
 
+    <button v-if="!isEdit" class="template-save-btn" @click="saveAsTemplate" :disabled="!form.category">
+      存為模板
+    </button>
+
     <button v-if="isEdit" class="delete-btn" @click="remove">刪除此筆</button>
   </div>
 </template>
@@ -90,6 +108,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTransactionsStore } from '../stores/transactions.js'
 import { useCategoriesStore } from '../stores/categories.js'
 import { useCardsStore } from '../stores/cards.js'
+import { useTemplatesStore } from '../stores/templates.js'
 import { getRecord } from '../services/db.js'
 
 const route = useRoute()
@@ -97,6 +116,7 @@ const router = useRouter()
 const txStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()
 const cardsStore = useCardsStore()
+const templatesStore = useTemplatesStore()
 
 const isEdit = computed(() => !!route.params.id)
 const today = new Date().toISOString().split('T')[0]
@@ -133,9 +153,36 @@ function switchType(type) {
   if (parents.length) selectParent(parents[0].id)
 }
 
+function getCategoryIcon(categoryId) {
+  const cat = categoriesStore.categories.find(c => c.id === categoryId)
+  return cat ? cat.icon : '📌'
+}
+
+function applyTemplate(tpl) {
+  form.type = tpl.type
+  const cat = categoriesStore.categories.find(c => c.id === tpl.category)
+  if (cat && cat.type === tpl.type) {
+    form.category = tpl.category
+    form.subcategory = tpl.subcategory
+  } else {
+    const parents = categoriesStore.getParents(tpl.type)
+    if (parents.length) {
+      selectParent(parents[0].id)
+    } else {
+      form.category = null
+      form.subcategory = null
+    }
+  }
+  form.channel = tpl.channel
+  form.cardId = tpl.cardId
+  form.account = tpl.account
+  form.note = tpl.note
+}
+
 onMounted(async () => {
   await categoriesStore.init()
   await cardsStore.init()
+  await templatesStore.init()
   if (route.params.id) {
     const tx = await getRecord('transactions', Number(route.params.id))
     if (tx) Object.assign(form, tx)
@@ -153,6 +200,26 @@ async function save() {
     await txStore.addTransaction({ ...form })
   }
   router.push('/')
+}
+
+async function saveAsTemplate() {
+  const name = prompt('模板名稱：')
+  if (!name || !name.trim()) return
+  try {
+    await templatesStore.addTemplate({
+      name: name.trim(),
+      type: form.type,
+      category: form.category,
+      subcategory: form.subcategory,
+      channel: form.channel,
+      cardId: form.cardId,
+      account: form.account,
+      note: form.note
+    })
+    alert('模板已儲存！')
+  } catch (e) {
+    alert('儲存失敗：' + e.message)
+  }
 }
 
 async function remove() {
@@ -195,4 +262,18 @@ async function remove() {
   border: 1px solid #F44336; border-radius: 8px; font-size: 16px;
   cursor: pointer; margin-top: 8px;
 }
+.template-selector { margin-bottom: 16px; }
+.template-selector label { display: block; font-size: 14px; color: #666; margin-bottom: 4px; }
+.template-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.template-btn {
+  flex-shrink: 0; padding: 6px 12px; border: 1px solid #ddd; background: #fff;
+  border-radius: 16px; cursor: pointer; font-size: 14px; white-space: nowrap;
+}
+.template-btn:hover { background: #E8F5E9; border-color: #4CAF50; }
+.template-save-btn {
+  width: 100%; padding: 14px; background: none; color: #2196F3;
+  border: 1px solid #2196F3; border-radius: 8px; font-size: 16px;
+  cursor: pointer; margin-top: 8px;
+}
+.template-save-btn:disabled { color: #ccc; border-color: #ccc; }
 </style>
