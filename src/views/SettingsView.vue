@@ -55,6 +55,36 @@
     </section>
 
     <section>
+      <h3>模板管理</h3>
+      <div v-if="!templatesStore.templates.length" class="hint">尚無模板。在記帳頁面填好欄位後可「存為模板」。</div>
+      <div
+        v-for="(tpl, index) in templatesStore.templates"
+        :key="tpl.id"
+        class="tpl-item"
+        draggable="true"
+        @dragstart="dragTplIndex = index"
+        @dragover.prevent
+        @drop="dropTemplate(index)"
+      >
+        <template v-if="editingTplId === tpl.id">
+          <div class="edit-cat">
+            <input v-model="editTplName" class="name-input" />
+            <button @click="saveEditTpl(tpl)" class="save-edit-btn">存</button>
+            <button @click="editingTplId = null" class="cancel-edit-btn">取消</button>
+          </div>
+        </template>
+        <template v-else>
+          <span class="tpl-drag-handle">☰</span>
+          <span>{{ getCategoryIcon(tpl.category) }} <strong>{{ tpl.name }}</strong> — {{ getCategoryLabel(tpl) }}</span>
+          <div class="cat-actions">
+            <button @click="startEditTpl(tpl)" class="edit-btn">編輯</button>
+            <button @click="deleteTpl(tpl.id)" class="delete-btn">刪除</button>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <section>
       <h3>匯入 CWMoney 資料</h3>
       <ImportCWMoney />
     </section>
@@ -89,6 +119,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useCategoriesStore } from '../stores/categories.js'
+import { useTemplatesStore } from '../stores/templates.js'
 import ImportCWMoney from '../components/ImportCWMoney.vue'
 import { useTransactionsStore } from '../stores/transactions.js'
 import { useCardsStore } from '../stores/cards.js'
@@ -96,6 +127,7 @@ import { initGoogleAuth, requestAuth, uploadBackup, downloadBackup, isConfigured
 import { getRecords, bulkRestore } from '../services/db.js'
 
 const categoriesStore = useCategoriesStore()
+const templatesStore = useTemplatesStore()
 const txStore = useTransactionsStore()
 const cardsStore = useCardsStore()
 
@@ -106,6 +138,10 @@ const editingCatId = ref(null)
 const editCatName = ref('')
 const editCatIcon = ref('')
 
+const editingTplId = ref(null)
+const editTplName = ref('')
+const dragTplIndex = ref(null)
+
 const displayParents = computed(() => categoriesStore.getParents(catTypeTab.value))
 const syncing = ref(false)
 const syncMsg = ref('')
@@ -114,6 +150,7 @@ const gdriveClientId = ref(getClientId())
 
 onMounted(async () => {
   await categoriesStore.init()
+  await templatesStore.init()
   if (gdriveConfigured.value) {
     await initGoogleAuth()
   }
@@ -146,6 +183,37 @@ async function saveEditCat(cat) {
 
 async function deleteCat(id) {
   if (confirm('確定刪除？')) await categoriesStore.deleteCategory(id)
+}
+
+function getCategoryIcon(categoryId) {
+  const cat = categoriesStore.categories.find(c => c.id === categoryId)
+  return cat ? cat.icon : '📌'
+}
+
+function getCategoryLabel(tpl) {
+  return categoriesStore.getFullCategoryName(tpl.category, tpl.subcategory) || '未分類'
+}
+
+function startEditTpl(tpl) {
+  editingTplId.value = tpl.id
+  editTplName.value = tpl.name
+}
+
+async function saveEditTpl(tpl) {
+  if (!editTplName.value.trim()) return
+  await templatesStore.editTemplate({ ...tpl, name: editTplName.value.trim() })
+  editingTplId.value = null
+}
+
+async function deleteTpl(id) {
+  if (confirm('確定刪除此模板？')) await templatesStore.deleteTemplate(id)
+}
+
+async function dropTemplate(toIndex) {
+  const fromIndex = dragTplIndex.value
+  if (fromIndex === null || fromIndex === toIndex) return
+  await templatesStore.reorder(fromIndex, toIndex)
+  dragTplIndex.value = null
 }
 
 async function saveClientId() {
@@ -234,4 +302,10 @@ section { margin-bottom: 24px; }
 .parent-cat { font-weight: 500; }
 .child-cat { padding-left: 16px; }
 .parent-select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+.tpl-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0; cursor: grab;
+}
+.tpl-item:active { cursor: grabbing; }
+.tpl-drag-handle { color: #ccc; cursor: grab; user-select: none; }
 </style>
