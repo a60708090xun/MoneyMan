@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'moneyman'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbInstance = null
 
@@ -29,6 +29,8 @@ export async function initDB() {
         const catStore = db.createObjectStore('categories', { keyPath: 'id', autoIncrement: true })
         catStore.createIndex('parentId', 'parentId')
         catStore.createIndex('type', 'type')
+
+        db.createObjectStore('templates', { keyPath: 'id', autoIncrement: true })
       }
       if (oldVersion >= 1 && oldVersion < 2) {
         // Upgrade from v1: add new indexes to existing stores
@@ -43,6 +45,11 @@ export async function initDB() {
         }
         if (!catStore.indexNames.contains('type')) {
           catStore.createIndex('type', 'type')
+        }
+      }
+      if (oldVersion >= 1 && oldVersion < 3) {
+        if (!db.objectStoreNames.contains('templates')) {
+          db.createObjectStore('templates', { keyPath: 'id', autoIncrement: true })
         }
       }
     }
@@ -136,12 +143,14 @@ export async function clearStore(storeName) {
 
 export async function bulkRestore(data) {
   const db = await initDB()
-  const tx = db.transaction(['transactions', 'cards', 'categories'], 'readwrite')
+  const tx = db.transaction(['transactions', 'cards', 'categories', 'templates'], 'readwrite')
   await tx.objectStore('transactions').clear()
   await tx.objectStore('cards').clear()
   await tx.objectStore('categories').clear()
+  await tx.objectStore('templates').clear()
   for (const item of data.transactions || []) await tx.objectStore('transactions').put(item)
   for (const card of data.cards || []) await tx.objectStore('cards').put(card)
   for (const cat of data.categories || []) await tx.objectStore('categories').put(cat)
+  for (const tpl of data.templates || []) await tx.objectStore('templates').put(tpl)
   await tx.done
 }

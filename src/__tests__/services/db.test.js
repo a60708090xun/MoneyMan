@@ -67,6 +67,35 @@ describe('db v2 schema', () => {
   })
 })
 
+describe('db v3 schema', () => {
+  beforeEach(async () => {
+    resetDB()
+  })
+
+  it('has templates object store', async () => {
+    const db = await initDB()
+    expect(db.objectStoreNames.contains('templates')).toBe(true)
+  })
+
+  it('templates store supports auto-increment id', async () => {
+    const id = await addRecord('templates', {
+      name: '早餐',
+      type: 'expense',
+      category: 1,
+      subcategory: null,
+      channel: '一般',
+      cardId: null,
+      account: '現金',
+      note: '',
+      sortOrder: 0
+    })
+    expect(typeof id).toBe('number')
+    const records = await getRecords('templates')
+    expect(records).toHaveLength(1)
+    expect(records[0].name).toBe('早餐')
+  })
+})
+
 describe('migrateData', () => {
   beforeEach(async () => {
     resetDB()
