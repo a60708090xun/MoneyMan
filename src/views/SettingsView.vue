@@ -238,6 +238,7 @@ async function upload() {
       transactions: await getRecords('transactions'),
       cards: await getRecords('cards'),
       categories: await getRecords('categories'),
+      templates: await getRecords('templates'),
       exportedAt: new Date().toISOString()
     }
     await uploadBackup(data)
@@ -263,6 +264,7 @@ async function download() {
     await txStore.loadAll()
     await cardsStore.init()
     await categoriesStore.init()
+    await templatesStore.init()
 
     syncMsg.value = `還原成功！（備份時間：${data.exportedAt}）`
   } catch (e) {
