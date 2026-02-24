@@ -30,5 +30,16 @@ export const useTemplatesStore = defineStore('templates', () => {
     templates.value = templates.value.filter(t => t.id !== id)
   }
 
-  return { templates, init, addTemplate, editTemplate, deleteTemplate }
+  async function reorder(fromIndex, toIndex) {
+    const item = templates.value.splice(fromIndex, 1)[0]
+    templates.value.splice(toIndex, 0, item)
+    // Reassign sortOrder to match new positions
+    for (let i = 0; i < templates.value.length; i++) {
+      const plain = { ...templates.value[i], sortOrder: i }
+      await updateRecord('templates', plain)
+      templates.value[i] = plain
+    }
+  }
+
+  return { templates, init, addTemplate, editTemplate, deleteTemplate, reorder }
 })

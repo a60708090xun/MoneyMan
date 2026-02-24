@@ -59,4 +59,42 @@ describe('templates store', () => {
     await store.deleteTemplate(id)
     expect(store.templates).toHaveLength(0)
   })
+
+  it('reorders templates (move last to first)', async () => {
+    const store = useTemplatesStore()
+    await store.init()
+    await store.addTemplate({ name: 'A', type: 'expense', category: 1, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+    await store.addTemplate({ name: 'B', type: 'expense', category: 2, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+    await store.addTemplate({ name: 'C', type: 'expense', category: 3, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+
+    await store.reorder(2, 0) // move C from index 2 to index 0
+
+    expect(store.templates.map(t => t.name)).toEqual(['C', 'A', 'B'])
+  })
+
+  it('reorders templates (move first to last)', async () => {
+    const store = useTemplatesStore()
+    await store.init()
+    await store.addTemplate({ name: 'A', type: 'expense', category: 1, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+    await store.addTemplate({ name: 'B', type: 'expense', category: 2, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+    await store.addTemplate({ name: 'C', type: 'expense', category: 3, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+
+    await store.reorder(0, 2) // move A from index 0 to index 2
+
+    expect(store.templates.map(t => t.name)).toEqual(['B', 'C', 'A'])
+  })
+
+  it('persists reorder after reload', async () => {
+    const store = useTemplatesStore()
+    await store.init()
+    await store.addTemplate({ name: 'A', type: 'expense', category: 1, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+    await store.addTemplate({ name: 'B', type: 'expense', category: 2, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+    await store.addTemplate({ name: 'C', type: 'expense', category: 3, subcategory: null, channel: '一般', cardId: null, account: '現金', note: '' })
+
+    await store.reorder(2, 0)
+
+    // Reload from DB
+    await store.init()
+    expect(store.templates.map(t => t.name)).toEqual(['C', 'A', 'B'])
+  })
 })
