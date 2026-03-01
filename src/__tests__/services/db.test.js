@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { initDB, addRecord, getRecords, updateRecord, deleteRecord, resetDB, migrateData } from '../../services/db.js'
+import { initDB, addRecord, getRecords, updateRecord, deleteRecord, resetDB, migrateData, setCWMoneyMeta, getCWMoneyMeta } from '../../services/db.js'
 
 describe('db service', () => {
   beforeEach(async () => {
@@ -198,5 +198,33 @@ describe('migrateData', () => {
     expect(records[0].category).toBe(1)
     expect(records[0].subcategory).toBe(5)
     expect(records[0].account).toBe('cash')
+  })
+})
+
+describe('db v4 schema', () => {
+  beforeEach(async () => {
+    resetDB()
+  })
+
+  it('has cwmoney_meta object store', async () => {
+    const db = await initDB()
+    expect(db.objectStoreNames.contains('cwmoney_meta')).toBe(true)
+  })
+
+  it('cwmoney_meta store uses key as keyPath', async () => {
+    const db = await initDB()
+    const tx = db.transaction('cwmoney_meta', 'readwrite')
+    const store = tx.objectStore('cwmoney_meta')
+    await store.put({ key: 'test_key', value: 'hello' })
+    await tx.done
+
+    const result = await db.get('cwmoney_meta', 'test_key')
+    expect(result.value).toBe('hello')
+  })
+
+  it('transactions store has cwId index', async () => {
+    const db = await initDB()
+    const txStore = db.transaction('transactions', 'readonly').objectStore('transactions')
+    expect(txStore.indexNames.contains('cwId')).toBe(true)
   })
 })
