@@ -90,6 +90,11 @@
     </section>
 
     <section>
+      <h3>匯出為 CWMoney .iDB</h3>
+      <ExportCWMoney />
+    </section>
+
+    <section>
       <h3>Google Drive 同步</h3>
       <div v-if="!gdriveConfigured" class="gdrive-setup">
         <p class="hint">請輸入 Google Cloud Console 的 OAuth Client ID 以啟用同步功能。</p>
@@ -121,6 +126,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useCategoriesStore } from '../stores/categories.js'
 import { useTemplatesStore } from '../stores/templates.js'
 import ImportCWMoney from '../components/ImportCWMoney.vue'
+import ExportCWMoney from '../components/ExportCWMoney.vue'
 import { useTransactionsStore } from '../stores/transactions.js'
 import { useCardsStore } from '../stores/cards.js'
 import { initGoogleAuth, requestAuth, uploadBackup, downloadBackup, isConfigured, setClientId, getClientId } from '../services/gdrive.js'
