@@ -144,3 +144,92 @@ export async function buildExportDB(originalIdb, transactions, categoryMapping, 
   db.close()
   return result
 }
+
+/**
+ * CWMoney table schemas for fresh export.
+ */
+const CWMONEY_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS rec_table (_id INTEGER PRIMARY KEY AUTOINCREMENT, i_money REAL, i_date INTEGER, i_kind INTEGER, i_kinds INTEGER, i_account INTEGER, i_remark TEXT, i_type TEXT)`,
+  `CREATE TABLE IF NOT EXISTS kind_table (_id INTEGER PRIMARY KEY, kindtext TEXT, pic TEXT, sort INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS kinds_table (_id INTEGER PRIMARY KEY, kindid INTEGER, kindstext TEXT, pic TEXT, sort INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS in_kind_table (_id INTEGER PRIMARY KEY, kindtext TEXT, pic TEXT, sort INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS in_kinds_table (_id INTEGER PRIMARY KEY, kindid INTEGER, kindstext TEXT, pic TEXT, sort INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS acc_table (_id INTEGER PRIMARY KEY, acctext TEXT, accpic TEXT, accsort INTEGER)`
+]
+
+/**
+ * Build a fresh CWMoney .iDB from MoneyMan data (no original .iDB).
+ */
+export async function buildFreshExportDB(transactions, categories) {
+  const SQL = await loadSqlJs()
+  const db = new SQL.Database()
+
+  for (const stmt of CWMONEY_SCHEMA) {
+    db.run(stmt)
+  }
+
+  // Build category mappings: MoneyMan ID → CW ID
+  const parentMap = {}
+  const childMap = {}
+
+  // Expense parents
+  const expenseParents = categories.filter(c => c.type === 'expense' && c.parentId === null)
+  expenseParents.forEach((cat, i) => {
+    const cwId = i + 1
+    parentMap[cat.id] = cwId
+    db.run('INSERT INTO kind_table VALUES (?, ?, ?, ?)', [cwId, cat.name, 'k1', i])
+  })
+
+  // Expense children
+  const expenseChildren = categories.filter(c => c.type === 'expense' && c.parentId !== null)
+  expenseChildren.forEach((cat, i) => {
+    const cwId = i + 1
+    childMap[cat.id] = cwId
+    const cwParentId = parentMap[cat.parentId] || 0
+    db.run('INSERT INTO kinds_table VALUES (?, ?, ?, ?, ?)', [cwId, cwParentId, cat.name, 'k1', i])
+  })
+
+  // Income parents
+  const incomeParents = categories.filter(c => c.type === 'income' && c.parentId === null)
+  incomeParents.forEach((cat, i) => {
+    const cwId = i + 1
+    parentMap[cat.id] = cwId
+    db.run('INSERT INTO in_kind_table VALUES (?, ?, ?, ?)', [cwId, cat.name, 'i1', i])
+  })
+
+  // Income children
+  const incomeChildren = categories.filter(c => c.type === 'income' && c.parentId !== null)
+  incomeChildren.forEach((cat, i) => {
+    const cwId = i + 1
+    childMap[cat.id] = cwId
+    const cwParentId = parentMap[cat.parentId] || 0
+    db.run('INSERT INTO in_kinds_table VALUES (?, ?, ?, ?, ?)', [cwId, cwParentId, cat.name, 'i1', i])
+  })
+
+  // Build account mapping from unique account names
+  const accountNames = [...new Set(transactions.map(t => t.account).filter(Boolean))]
+  const accMap = {}
+  accountNames.forEach((name, i) => {
+    const cwId = i + 1
+    accMap[name] = cwId
+    db.run('INSERT INTO acc_table VALUES (?, ?, ?, ?)', [cwId, name, 'm1', i])
+  })
+
+  // Insert transactions
+  for (const tx of transactions) {
+    const iDate = dateToTimestamp(tx.date)
+    const iKind = parentMap[tx.category] || 0
+    const iKinds = childMap[tx.subcategory] || 0
+    const iAccount = accMap[tx.account] || 0
+    const iType = tx.type === 'income' ? '2' : '1'
+
+    db.run(
+      'INSERT INTO rec_table (i_money, i_date, i_kind, i_kinds, i_account, i_remark, i_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [tx.amount, iDate, iKind, iKinds, iAccount, tx.note, iType]
+    )
+  }
+
+  const freshResult = new Uint8Array(db.export())
+  db.close()
+  return freshResult
+}

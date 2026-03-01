@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildExportDB, computeChangeSummary } from '../../services/cwmoney-exporter.js'
+import { buildExportDB, buildFreshExportDB, computeChangeSummary } from '../../services/cwmoney-exporter.js'
 
 // Helper: create a minimal CWMoney SQLite database using sql.js
 async function createMockCWMoneyDB() {
@@ -174,6 +174,61 @@ describe('cwmoney-exporter', () => {
       expect(rec[0].values[0][0]).toBe('photo.jpg')
 
       resultDb.close()
+    })
+  })
+
+  describe('buildFreshExportDB', () => {
+    it('creates a valid CWMoney .iDB from MoneyMan data', async () => {
+      const categories = [
+        { id: 1, name: '飲食', type: 'expense', parentId: null, icon: '🍔', color: '#F44336' },
+        { id: 2, name: '早餐', type: 'expense', parentId: 1, icon: '🥐', color: '#F44336' },
+        { id: 3, name: '薪水', type: 'income', parentId: null, icon: '💰', color: '#4CAF50' }
+      ]
+
+      const transactions = [
+        { id: 1, amount: 80, type: 'expense', date: '2024-02-01', note: '早餐', category: 1, subcategory: 2, account: '現金' },
+        { id: 2, amount: 45000, type: 'income', date: '2024-02-05', note: '月薪', category: 3, subcategory: null, account: '銀行' }
+      ]
+
+      const resultBytes = await buildFreshExportDB(transactions, categories)
+
+      const initSqlJs = (await import('sql.js')).default
+      const SQL = await initSqlJs()
+      const db = new SQL.Database(resultBytes)
+
+      // Check rec_table
+      const recs = db.exec('SELECT COUNT(*) FROM rec_table')
+      expect(recs[0].values[0][0]).toBe(2)
+
+      // Check expense category tables
+      const kinds = db.exec('SELECT kindtext FROM kind_table')
+      expect(kinds[0].values[0][0]).toBe('飲食')
+
+      const kindsChildren = db.exec('SELECT kindstext FROM kinds_table')
+      expect(kindsChildren[0].values[0][0]).toBe('早餐')
+
+      // Check income category tables
+      const inKinds = db.exec('SELECT kindtext FROM in_kind_table')
+      expect(inKinds[0].values[0][0]).toBe('薪水')
+
+      // Check accounts
+      const accs = db.exec('SELECT acctext FROM acc_table ORDER BY accsort')
+      expect(accs[0].values.map(r => r[0])).toContain('現金')
+      expect(accs[0].values.map(r => r[0])).toContain('銀行')
+
+      db.close()
+    })
+
+    it('handles empty transactions', async () => {
+      const resultBytes = await buildFreshExportDB([], [])
+
+      const initSqlJs = (await import('sql.js')).default
+      const SQL = await initSqlJs()
+      const db = new SQL.Database(resultBytes)
+
+      const recs = db.exec('SELECT COUNT(*) FROM rec_table')
+      expect(recs[0].values[0][0]).toBe(0)
+      db.close()
     })
   })
 })
