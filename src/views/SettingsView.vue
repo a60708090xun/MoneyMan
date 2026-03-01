@@ -239,6 +239,7 @@ async function upload() {
       cards: await getRecords('cards'),
       categories: await getRecords('categories'),
       templates: await getRecords('templates'),
+      cwmoney_meta: await getRecords('cwmoney_meta'),
       exportedAt: new Date().toISOString()
     }
     await uploadBackup(data)
