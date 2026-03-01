@@ -201,6 +201,33 @@ describe('migrateData', () => {
   })
 })
 
+describe('cwmoney_meta helpers', () => {
+  beforeEach(async () => {
+    resetDB()
+    const db = await initDB()
+    const tx = db.transaction('cwmoney_meta', 'readwrite')
+    await tx.objectStore('cwmoney_meta').clear()
+    await tx.done
+  })
+
+  it('sets and gets cwmoney meta', async () => {
+    await setCWMoneyMeta('test_key', { foo: 'bar' })
+    const result = await getCWMoneyMeta('test_key')
+    expect(result).toEqual({ foo: 'bar' })
+  })
+
+  it('returns null for missing key', async () => {
+    const result = await getCWMoneyMeta('nonexistent')
+    expect(result).toBeNull()
+  })
+
+  it('overwrites existing key', async () => {
+    await setCWMoneyMeta('key1', 'old')
+    await setCWMoneyMeta('key1', 'new')
+    expect(await getCWMoneyMeta('key1')).toBe('new')
+  })
+})
+
 describe('db v4 schema', () => {
   beforeEach(async () => {
     resetDB()

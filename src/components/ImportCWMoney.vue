@@ -94,6 +94,7 @@ import {
   openIDB, parseDateRange, parseCategories, parseAccounts,
   parseRecords, getRecordCount, getPreviewRecords
 } from '../services/cwmoney-parser.js'
+import { setCWMoneyMeta } from '../services/db.js'
 
 const txStore = useTransactionsStore()
 const catStore = useCategoriesStore()
@@ -105,6 +106,8 @@ const loading = ref(false)
 let sqliteDb = null
 let cwCategories = null
 let cwAccounts = null
+let originalIdbBytes = null
+let originalFileName = ''
 
 const dateRange = ref({ min: '', max: '', count: 0 })
 const startDate = ref('')
@@ -157,6 +160,9 @@ async function onFileSelect(e) {
   error.value = ''
   loading.value = true
   try {
+    originalFileName = file.name
+    const fileBuffer = await file.arrayBuffer()
+    originalIdbBytes = new Uint8Array(fileBuffer.slice(0))
     sqliteDb = await openIDB(file)
     cwCategories = parseCategories(sqliteDb)
     cwAccounts = parseAccounts(sqliteDb)
@@ -274,7 +280,8 @@ async function doImport() {
     } else {
       await txStore.addTransaction({
         amount: r.amount, type: r.type, category: parentCatId, subcategory: subCatId,
-        channel: null, cardId: null, date: r.date, note: r.note, account: r.account
+        channel: null, cardId: null, date: r.date, note: r.note, account: r.account,
+        cwId: r.cwId
       })
       added++
     }
@@ -284,6 +291,17 @@ async function doImport() {
 
   importResult.value.added = added
   importResult.value.skipped = skipped
+
+  await setCWMoneyMeta('original_idb', originalIdbBytes)
+  await setCWMoneyMeta('category_mapping', catMapping)
+  await setCWMoneyMeta('account_mapping', cwAccounts)
+  await setCWMoneyMeta('import_info', {
+    importedAt: new Date().toISOString(),
+    fileName: originalFileName,
+    dateRange: { start: startDate.value, end: endDate.value },
+    originalRecordCount: records.length
+  })
+
   step.value = 'done'
 }
 
@@ -293,6 +311,8 @@ function reset() {
   cwCategories = null
   cwAccounts = null
   cwCategoryLookup = {}
+  originalIdbBytes = null
+  originalFileName = ''
   error.value = ''
   preview.value = { first10: [], last10: [] }
   importResult.value = { added: 0, skipped: 0, categoriesAdded: 0 }
