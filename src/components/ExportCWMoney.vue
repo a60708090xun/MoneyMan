@@ -17,6 +17,7 @@
           <span>新增 {{ changeSummary.inserted }} 筆</span>
           <span>刪除 {{ changeSummary.deleted }} 筆</span>
         </div>
+        <p v-if="changeSummary.inserted > 0" class="hint">新增的 {{ changeSummary.inserted }} 筆為 MoneyMan 中手動建立的交易，將以未分類寫入 .iDB。</p>
         <div class="actions">
           <button @click="doExport" class="export-btn">匯出 .iDB</button>
         </div>
@@ -181,7 +182,13 @@ async function doFreshExport() {
     const filtered = txStore.transactions.filter(t => t.date >= startDate.value && t.date <= endDate.value)
     exportedBytes = await buildFreshExportDB(filtered, catStore.categories)
     exportedCount.value = filtered.length
-    exportedCatCount.value = catStore.categories.length
+    // Count categories actually referenced by exported transactions
+    const usedCatIds = new Set()
+    for (const tx of filtered) {
+      if (tx.category != null) usedCatIds.add(tx.category)
+      if (tx.subcategory != null) usedCatIds.add(tx.subcategory)
+    }
+    exportedCatCount.value = usedCatIds.size
     step.value = 'done'
   } catch (e) {
     error.value = '匯出失敗：' + e.message

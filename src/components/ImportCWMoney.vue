@@ -293,7 +293,8 @@ async function doImport() {
   importResult.value.skipped = skipped
 
   await setCWMoneyMeta('original_idb', originalIdbBytes)
-  await setCWMoneyMeta('category_mapping', catMapping)
+  const { newCount: _, ...cleanCatMapping } = catMapping
+  await setCWMoneyMeta('category_mapping', cleanCatMapping)
   await setCWMoneyMeta('account_mapping', cwAccounts)
   await setCWMoneyMeta('import_info', {
     importedAt: new Date().toISOString(),

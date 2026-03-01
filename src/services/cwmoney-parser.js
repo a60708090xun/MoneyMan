@@ -29,7 +29,7 @@ export function timestampToDate(ts) {
  * @param {string} dateStr - Date string in 'YYYY-MM-DD' format
  * @returns {number} Unix timestamp in seconds
  */
-function dateToTimestamp(dateStr) {
+export function dateToTimestamp(dateStr) {
   return Math.floor(new Date(dateStr + 'T00:00:00Z').getTime() / 1000)
 }
 

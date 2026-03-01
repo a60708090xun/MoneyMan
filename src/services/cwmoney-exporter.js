@@ -7,14 +7,7 @@
  *   - Fresh export: create a new .iDB from scratch
  */
 
-import { loadSqlJs } from './cwmoney-parser.js'
-
-/**
- * Convert 'YYYY-MM-DD' to Unix timestamp (seconds) at UTC midnight.
- */
-function dateToTimestamp(dateStr) {
-  return Math.floor(new Date(dateStr + 'T00:00:00Z').getTime() / 1000)
-}
+import { loadSqlJs, dateToTimestamp } from './cwmoney-parser.js'
 
 /**
  * Reverse a category mapping: { cwKey: moneyManId } → { moneyManId: cwNumericId }
@@ -55,6 +48,13 @@ function reverseAccountMapping(accountMapping) {
 export async function computeChangeSummary(originalIdb, transactions, categoryMapping, accountMapping) {
   const SQL = await loadSqlJs()
   const db = new SQL.Database(new Uint8Array(originalIdb))
+
+  // Validate SQLite integrity
+  const integrityResult = db.exec('PRAGMA integrity_check')
+  if (!integrityResult.length || integrityResult[0].values[0][0] !== 'ok') {
+    db.close()
+    throw new Error('原始 .iDB 檔案已損壞，無法匯出')
+  }
 
   const countResult = db.exec('SELECT COUNT(*) FROM rec_table')
   const originalCount = countResult.length ? countResult[0].values[0][0] : 0
@@ -98,6 +98,13 @@ export async function computeChangeSummary(originalIdb, transactions, categoryMa
 export async function buildExportDB(originalIdb, transactions, categoryMapping, accountMapping) {
   const SQL = await loadSqlJs()
   const db = new SQL.Database(new Uint8Array(originalIdb))
+
+  // Validate SQLite integrity before modifying
+  const integrityResult = db.exec('PRAGMA integrity_check')
+  if (!integrityResult.length || integrityResult[0].values[0][0] !== 'ok') {
+    db.close()
+    throw new Error('原始 .iDB 檔案已損壞，無法匯出')
+  }
 
   const { parentReverse, childReverse } = reverseCategoryMapping(categoryMapping)
   const accReverse = reverseAccountMapping(accountMapping)
@@ -168,12 +175,25 @@ export async function buildFreshExportDB(transactions, categories) {
     db.run(stmt)
   }
 
+  // Collect category IDs referenced by transactions
+  const usedCatIds = new Set()
+  for (const tx of transactions) {
+    if (tx.category != null) usedCatIds.add(tx.category)
+    if (tx.subcategory != null) usedCatIds.add(tx.subcategory)
+  }
+  // Also include parents of used children
+  for (const cat of categories) {
+    if (usedCatIds.has(cat.id) && cat.parentId != null) {
+      usedCatIds.add(cat.parentId)
+    }
+  }
+
   // Build category mappings: MoneyMan ID → CW ID
   const parentMap = {}
   const childMap = {}
 
   // Expense parents
-  const expenseParents = categories.filter(c => c.type === 'expense' && c.parentId === null)
+  const expenseParents = categories.filter(c => c.type === 'expense' && c.parentId === null && usedCatIds.has(c.id))
   expenseParents.forEach((cat, i) => {
     const cwId = i + 1
     parentMap[cat.id] = cwId
@@ -181,7 +201,7 @@ export async function buildFreshExportDB(transactions, categories) {
   })
 
   // Expense children
-  const expenseChildren = categories.filter(c => c.type === 'expense' && c.parentId !== null)
+  const expenseChildren = categories.filter(c => c.type === 'expense' && c.parentId !== null && usedCatIds.has(c.id))
   expenseChildren.forEach((cat, i) => {
     const cwId = i + 1
     childMap[cat.id] = cwId
@@ -190,7 +210,7 @@ export async function buildFreshExportDB(transactions, categories) {
   })
 
   // Income parents
-  const incomeParents = categories.filter(c => c.type === 'income' && c.parentId === null)
+  const incomeParents = categories.filter(c => c.type === 'income' && c.parentId === null && usedCatIds.has(c.id))
   incomeParents.forEach((cat, i) => {
     const cwId = i + 1
     parentMap[cat.id] = cwId
@@ -198,7 +218,7 @@ export async function buildFreshExportDB(transactions, categories) {
   })
 
   // Income children
-  const incomeChildren = categories.filter(c => c.type === 'income' && c.parentId !== null)
+  const incomeChildren = categories.filter(c => c.type === 'income' && c.parentId !== null && usedCatIds.has(c.id))
   incomeChildren.forEach((cat, i) => {
     const cwId = i + 1
     childMap[cat.id] = cwId

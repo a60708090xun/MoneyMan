@@ -219,6 +219,36 @@ describe('cwmoney-exporter', () => {
       db.close()
     })
 
+    it('only exports categories referenced by transactions', async () => {
+      const categories = [
+        { id: 1, name: '飲食', type: 'expense', parentId: null, icon: '🍔', color: '#F44336' },
+        { id: 2, name: '早餐', type: 'expense', parentId: 1, icon: '🥐', color: '#F44336' },
+        { id: 3, name: '交通', type: 'expense', parentId: null, icon: '🚗', color: '#2196F3' },
+        { id: 4, name: '薪水', type: 'income', parentId: null, icon: '💰', color: '#4CAF50' }
+      ]
+
+      // Only references category 1 (飲食) and subcategory 2 (早餐), NOT 交通 or 薪水
+      const transactions = [
+        { id: 1, amount: 80, type: 'expense', date: '2024-02-01', note: '早餐', category: 1, subcategory: 2, account: '現金' }
+      ]
+
+      const resultBytes = await buildFreshExportDB(transactions, categories)
+
+      const initSqlJs = (await import('sql.js')).default
+      const SQL = await initSqlJs()
+      const db = new SQL.Database(resultBytes)
+
+      // Only 飲食 should be in kind_table (not 交通)
+      const kinds = db.exec('SELECT COUNT(*) FROM kind_table')
+      expect(kinds[0].values[0][0]).toBe(1)
+
+      // No income categories should be exported
+      const inKinds = db.exec('SELECT COUNT(*) FROM in_kind_table')
+      expect(inKinds[0].values[0][0]).toBe(0)
+
+      db.close()
+    })
+
     it('handles empty transactions', async () => {
       const resultBytes = await buildFreshExportDB([], [])
 
