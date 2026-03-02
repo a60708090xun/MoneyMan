@@ -261,4 +261,17 @@ describe('cwmoney-exporter', () => {
       db.close()
     })
   })
+
+  describe('integrity check', () => {
+    it('computeChangeSummary throws on corrupted .iDB', async () => {
+      // Use garbage bytes — sql.js cannot open this as a database
+      const corrupted = new Uint8Array([0, 1, 2, 3])
+      await expect(computeChangeSummary(corrupted, [], {}, {})).rejects.toThrow()
+    })
+
+    it('buildExportDB throws on corrupted .iDB', async () => {
+      const corrupted = new Uint8Array([0, 1, 2, 3])
+      await expect(buildExportDB(corrupted, [], {}, {})).rejects.toThrow()
+    })
+  })
 })
