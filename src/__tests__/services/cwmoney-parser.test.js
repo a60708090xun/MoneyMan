@@ -85,6 +85,7 @@ describe('cwmoney-parser', () => {
       expect(records[0].cwKinds).toBe(3)
       expect(records[0].channel).toBeNull()
       expect(records[0].cardId).toBeNull()
+      expect(records[0].cwId).toBe(1)
     })
 
     it('handles income type correctly', () => {
@@ -96,6 +97,7 @@ describe('cwmoney-parser', () => {
       const records = parseRecords(db, '2024-01-01', '2024-12-31', { 1: '現金' })
       expect(records[0].type).toBe('income')
       expect(records[0].amount).toBe(45000)
+      expect(records[0].cwId).toBe(2)
     })
   })
 

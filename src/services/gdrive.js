@@ -97,6 +97,39 @@ export async function uploadBackup(data) {
   }
 }
 
+const IDB_FILE_NAME = 'moneyman-cwmoney-export.iDB'
+
+export async function uploadIDB(uint8Array) {
+  if (!accessToken) throw new Error('未授權')
+
+  const blob = new Blob([uint8Array], { type: 'application/octet-stream' })
+
+  const searchRes = await checkedFetch(
+    `https://www.googleapis.com/drive/v3/files?q=name='${IDB_FILE_NAME}'&spaces=drive`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  const searchData = await searchRes.json()
+
+  if (searchData.files?.length > 0) {
+    const fileId = searchData.files[0].id
+    await checkedFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream' },
+      body: blob
+    })
+  } else {
+    const metadata = { name: IDB_FILE_NAME, mimeType: 'application/octet-stream' }
+    const form = new FormData()
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
+    form.append('file', blob)
+    await checkedFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form
+    })
+  }
+}
+
 export async function downloadBackup() {
   if (!accessToken) throw new Error('未授權')
 

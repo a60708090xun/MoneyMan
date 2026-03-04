@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'moneyman'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 let dbInstance = null
 
@@ -23,6 +23,7 @@ export async function initDB() {
         txStore.createIndex('category', 'category')
         txStore.createIndex('cardId', 'cardId')
         txStore.createIndex('subcategory', 'subcategory')
+        txStore.createIndex('cwId', 'cwId')
 
         db.createObjectStore('cards', { keyPath: 'id' })
 
@@ -31,6 +32,7 @@ export async function initDB() {
         catStore.createIndex('type', 'type')
 
         db.createObjectStore('templates', { keyPath: 'id', autoIncrement: true })
+        db.createObjectStore('cwmoney_meta', { keyPath: 'key' })
       }
       if (oldVersion >= 1 && oldVersion < 2) {
         // Upgrade from v1: add new indexes to existing stores
@@ -50,6 +52,15 @@ export async function initDB() {
       if (oldVersion >= 1 && oldVersion < 3) {
         if (!db.objectStoreNames.contains('templates')) {
           db.createObjectStore('templates', { keyPath: 'id', autoIncrement: true })
+        }
+      }
+      if (oldVersion >= 1 && oldVersion < 4) {
+        if (!db.objectStoreNames.contains('cwmoney_meta')) {
+          db.createObjectStore('cwmoney_meta', { keyPath: 'key' })
+        }
+        const txStore = transaction.objectStore('transactions')
+        if (!txStore.indexNames.contains('cwId')) {
+          txStore.createIndex('cwId', 'cwId')
         }
       }
     }
@@ -143,14 +154,28 @@ export async function clearStore(storeName) {
 
 export async function bulkRestore(data) {
   const db = await initDB()
-  const tx = db.transaction(['transactions', 'cards', 'categories', 'templates'], 'readwrite')
+  const storeNames = ['transactions', 'cards', 'categories', 'templates', 'cwmoney_meta']
+  const tx = db.transaction(storeNames, 'readwrite')
   await tx.objectStore('transactions').clear()
   await tx.objectStore('cards').clear()
   await tx.objectStore('categories').clear()
   await tx.objectStore('templates').clear()
+  await tx.objectStore('cwmoney_meta').clear()
   for (const item of data.transactions || []) await tx.objectStore('transactions').put(item)
   for (const card of data.cards || []) await tx.objectStore('cards').put(card)
   for (const cat of data.categories || []) await tx.objectStore('categories').put(cat)
   for (const tpl of data.templates || []) await tx.objectStore('templates').put(tpl)
+  for (const meta of data.cwmoney_meta || []) await tx.objectStore('cwmoney_meta').put(meta)
   await tx.done
+}
+
+export async function setCWMoneyMeta(key, value) {
+  const db = await initDB()
+  await db.put('cwmoney_meta', { key, value })
+}
+
+export async function getCWMoneyMeta(key) {
+  const db = await initDB()
+  const result = await db.get('cwmoney_meta', key)
+  return result ? result.value : null
 }

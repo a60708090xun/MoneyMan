@@ -29,7 +29,7 @@ export function timestampToDate(ts) {
  * @param {string} dateStr - Date string in 'YYYY-MM-DD' format
  * @returns {number} Unix timestamp in seconds
  */
-function dateToTimestamp(dateStr) {
+export function dateToTimestamp(dateStr) {
   return Math.floor(new Date(dateStr + 'T00:00:00Z').getTime() / 1000)
 }
 
@@ -48,6 +48,7 @@ const REC_COLUMNS = '_id, i_money, i_date, i_kind, i_kinds, i_account, i_remark,
 
 function mapRow(row, accounts) {
   return {
+    cwId: parseInt(row[0]),
     amount: parseFloat(row[1]),
     type: String(row[7]) === '2' ? 'income' : 'expense',
     date: timestampToDate(row[2]),

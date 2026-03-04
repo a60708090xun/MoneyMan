@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { initDB, addRecord, getRecords, updateRecord, deleteRecord, resetDB, migrateData } from '../../services/db.js'
+import { initDB, addRecord, getRecords, updateRecord, deleteRecord, resetDB, migrateData, setCWMoneyMeta, getCWMoneyMeta } from '../../services/db.js'
 
 describe('db service', () => {
   beforeEach(async () => {
@@ -198,5 +198,60 @@ describe('migrateData', () => {
     expect(records[0].category).toBe(1)
     expect(records[0].subcategory).toBe(5)
     expect(records[0].account).toBe('cash')
+  })
+})
+
+describe('cwmoney_meta helpers', () => {
+  beforeEach(async () => {
+    resetDB()
+    const db = await initDB()
+    const tx = db.transaction('cwmoney_meta', 'readwrite')
+    await tx.objectStore('cwmoney_meta').clear()
+    await tx.done
+  })
+
+  it('sets and gets cwmoney meta', async () => {
+    await setCWMoneyMeta('test_key', { foo: 'bar' })
+    const result = await getCWMoneyMeta('test_key')
+    expect(result).toEqual({ foo: 'bar' })
+  })
+
+  it('returns null for missing key', async () => {
+    const result = await getCWMoneyMeta('nonexistent')
+    expect(result).toBeNull()
+  })
+
+  it('overwrites existing key', async () => {
+    await setCWMoneyMeta('key1', 'old')
+    await setCWMoneyMeta('key1', 'new')
+    expect(await getCWMoneyMeta('key1')).toBe('new')
+  })
+})
+
+describe('db v4 schema', () => {
+  beforeEach(async () => {
+    resetDB()
+  })
+
+  it('has cwmoney_meta object store', async () => {
+    const db = await initDB()
+    expect(db.objectStoreNames.contains('cwmoney_meta')).toBe(true)
+  })
+
+  it('cwmoney_meta store uses key as keyPath', async () => {
+    const db = await initDB()
+    const tx = db.transaction('cwmoney_meta', 'readwrite')
+    const store = tx.objectStore('cwmoney_meta')
+    await store.put({ key: 'test_key', value: 'hello' })
+    await tx.done
+
+    const result = await db.get('cwmoney_meta', 'test_key')
+    expect(result.value).toBe('hello')
+  })
+
+  it('transactions store has cwId index', async () => {
+    const db = await initDB()
+    const txStore = db.transaction('transactions', 'readonly').objectStore('transactions')
+    expect(txStore.indexNames.contains('cwId')).toBe(true)
   })
 })
