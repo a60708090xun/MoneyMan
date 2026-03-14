@@ -141,6 +141,15 @@ describe('transactions store', () => {
       expect(result.totalB).toBe(500)
     })
 
+    it('getMonthComparison returns null pct when monthA is zero', async () => {
+      await store.addTransaction({ amount: 500, type: 'expense', category: catId, date: '2026-02-05' })
+      const result = store.getMonthComparison(2026, 1, 2026, 2)
+      expect(result.categories['飲食'].monthA).toBe(0)
+      expect(result.categories['飲食'].monthB).toBe(500)
+      expect(result.categories['飲食'].pct).toBeNull()
+      expect(result.pct).toBeNull()
+    })
+
     it('getHeatmapByWeekdayHour aggregates by weekday and hour', async () => {
       await store.addTransaction({ amount: 100, type: 'expense', category: catId, date: '2026-03-09T14:30' }) // Monday
       await store.addTransaction({ amount: 200, type: 'expense', category: catId, date: '2026-03-09T14:45' }) // Monday

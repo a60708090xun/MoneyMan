@@ -13,7 +13,7 @@
               v-for="tx in transactions"
               :key="tx.id"
               class="tx-row"
-              @click="$router.push(`/add/${tx.id}`)"
+              @click="navigateToEdit(tx.id)"
             >
               <div class="tx-left">
                 <span class="tx-date">{{ formatDate(tx.date) }}</span>
@@ -32,6 +32,7 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { useCategoriesStore } from '../stores/categories.js'
 
 defineProps({
@@ -41,7 +42,12 @@ defineProps({
 })
 defineEmits(['close'])
 
+const router = useRouter()
 const categoriesStore = useCategoriesStore()
+
+function navigateToEdit(id) {
+  router.push(`/add/${id}`)
+}
 
 function getCategoryName(id) {
   return categoriesStore.getCategoryName(id) || '未分類'

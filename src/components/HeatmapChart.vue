@@ -94,14 +94,13 @@ const emit = defineEmits(['update:year', 'drill-down'])
 const txStore = useTransactionsStore()
 const categoriesStore = useCategoriesStore()
 const mode = ref('weekdayHour')
-const range = ref(3)
+const range = ref(12)
 
 const weekdays = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
 const ranges = [
-  { label: '1月', value: 1 },
-  { label: '3月', value: 3 },
-  { label: '6月', value: 6 },
-  { label: '1年', value: 12 }
+  { label: 'Q1', value: 3 },
+  { label: '上半年', value: 6 },
+  { label: '全年', value: 12 }
 ]
 
 // Color interpolation helper
@@ -113,12 +112,16 @@ function heatColor(value, max) {
   return levels[idx]
 }
 
-// Weekday x Hour
+// Weekday x Hour — range based on props.year
+const weekdayHourRange = computed(() => {
+  const endMonth = range.value
+  const start = `${props.year}-01-01`
+  const end = `${props.year}-${String(endMonth).padStart(2, '0')}-31`
+  return { start, end }
+})
+
 const weekdayHourData = computed(() => {
-  const now = new Date()
-  const end = now.toISOString().split('T')[0]
-  const start = new Date(now.getFullYear(), now.getMonth() - range.value, now.getDate())
-    .toISOString().split('T')[0]
+  const { start, end } = weekdayHourRange.value
   return txStore.getHeatmapByWeekdayHour(start, end)
 })
 
@@ -144,17 +147,14 @@ function getWeekdayHourTooltip(weekday, hour) {
 function drillDownWeekdayHour(weekday, hour) {
   const d = findWeekdayHour(weekday, hour)
   if (!d || !d.count) return
-  const now = new Date()
-  const end = now.toISOString().split('T')[0]
-  const start = new Date(now.getFullYear(), now.getMonth() - range.value, now.getDate())
-    .toISOString().split('T')[0]
+  const { start, end } = weekdayHourRange.value
   const txs = txStore.transactions.filter(t => {
     if (!t.date || t.type !== 'expense' || !t.date.includes('T')) return false
     if (t.date < start || t.date > end + '\uffff') return false
     const dt = new Date(t.date)
     return (dt.getDay() + 6) % 7 === weekday && dt.getHours() === hour
   })
-  emit('drill-down', { title: `${weekdays[weekday]} ${hour}:00-${hour + 1}:00`, transactions: txs })
+  emit('drill-down', { title: `${props.year} ${weekdays[weekday]} ${hour}:00-${hour + 1}:00`, transactions: txs })
 }
 
 // Calendar

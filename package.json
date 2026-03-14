@@ -16,7 +16,6 @@
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
     "chart.js": "^4.5.1",
-    "chartjs-chart-matrix": "^3.0.0",
     "idb": "^8.0.3",
     "pdfjs-dist": "^5.4.624",
     "pinia": "^3.0.4",

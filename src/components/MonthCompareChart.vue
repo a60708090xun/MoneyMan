@@ -38,7 +38,8 @@
           <span>${{ val.monthB.toLocaleString() }}</span>
           <span :class="val.diff > 0 ? 'up' : val.diff < 0 ? 'down' : ''">
             {{ val.diff > 0 ? '+' : '' }}${{ val.diff.toLocaleString() }}
-            ({{ val.pct > 0 ? '+' : '' }}{{ val.pct }}%)
+            <template v-if="val.pct !== null">({{ val.pct > 0 ? '+' : '' }}{{ val.pct }}%)</template>
+            <template v-else>(新增)</template>
           </span>
         </div>
         <div class="diff-row total">
@@ -71,7 +72,7 @@
           <div v-if="vsLastMonth" class="period-summary">
             <span :class="vsLastMonth.diff > 0 ? 'up' : 'down'">
               {{ vsLastMonth.diff > 0 ? '+' : '' }}${{ vsLastMonth.diff.toLocaleString() }}
-              ({{ vsLastMonth.pct > 0 ? '+' : '' }}{{ vsLastMonth.pct }}%)
+              <template v-if="vsLastMonth.pct !== null">({{ vsLastMonth.pct > 0 ? '+' : '' }}{{ vsLastMonth.pct }}%)</template>
             </span>
             <div class="top-changes">
               <div v-for="c in topChangesLastMonth" :key="c.name" class="change-item">
@@ -85,7 +86,7 @@
           <div v-if="vsLastYear" class="period-summary">
             <span :class="vsLastYear.diff > 0 ? 'up' : 'down'">
               {{ vsLastYear.diff > 0 ? '+' : '' }}${{ vsLastYear.diff.toLocaleString() }}
-              ({{ vsLastYear.pct > 0 ? '+' : '' }}{{ vsLastYear.pct }}%)
+              <template v-if="vsLastYear.pct !== null">({{ vsLastYear.pct > 0 ? '+' : '' }}{{ vsLastYear.pct }}%)</template>
             </span>
             <div class="top-changes">
               <div v-for="c in topChangesLastYear" :key="c.name" class="change-item">
@@ -104,6 +105,7 @@ import { ref, computed } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import { useTransactionsStore } from '../stores/transactions.js'
+import { useCategoriesStore } from '../stores/categories.js'
 import PieChart from './PieChart.vue'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend)
@@ -112,6 +114,7 @@ const props = defineProps({ currentYear: Number, currentMonth: Number })
 const emit = defineEmits(['drill-down'])
 
 const txStore = useTransactionsStore()
+const categoriesStore = useCategoriesStore()
 const mode = ref('dual')
 
 // Helpers
@@ -146,7 +149,11 @@ const comparison = computed(() => {
 
 function drillDownCategory(cat) {
   const b = parseMonth(monthB.value)
-  const txs = txStore.getMonthTransactions(b.year, b.month).filter(t => t.type === 'expense')
+  const txs = txStore.getMonthTransactions(b.year, b.month).filter(t => {
+    if (t.type !== 'expense') return false
+    const name = categoriesStore.getCategoryName(t.category) || '未分類'
+    return name === cat
+  })
   emit('drill-down', { title: `${monthB.value} / ${cat}`, transactions: txs })
 }
 

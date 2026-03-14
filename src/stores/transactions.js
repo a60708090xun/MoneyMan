@@ -138,12 +138,12 @@ export const useTransactionsStore = defineStore('transactions', () => {
       categories[name] = {
         monthA: a, monthB: b,
         diff: b - a,
-        pct: a === 0 ? (b > 0 ? 100 : 0) : Math.round((b - a) / a * 1000) / 10
+        pct: a === 0 ? null : Math.round((b - a) / a * 1000) / 10
       }
       totalA += a
       totalB += b
     }
-    return { categories, totalA, totalB, diff: totalB - totalA, pct: totalA === 0 ? (totalB > 0 ? 100 : 0) : Math.round((totalB - totalA) / totalA * 1000) / 10 }
+    return { categories, totalA, totalB, diff: totalB - totalA, pct: totalA === 0 ? null : Math.round((totalB - totalA) / totalA * 1000) / 10 }
   }
 
   function getHeatmapByWeekdayHour(startDate, endDate) {
