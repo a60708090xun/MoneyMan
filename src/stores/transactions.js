@@ -58,7 +58,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     const txs = getMonthTransactions(year, month).filter(t => t.type === 'expense')
     const daily = {}
     for (const t of txs) {
-      const day = parseInt(t.date.split('-')[2])
+      const day = parseInt(t.date.substring(8, 10))
       daily[day] = (daily[day] || 0) + t.amount
     }
     return daily

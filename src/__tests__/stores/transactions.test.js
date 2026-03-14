@@ -67,4 +67,35 @@ describe('transactions store', () => {
     await store.deleteTransaction(id)
     expect(store.transactions).toHaveLength(0)
   })
+
+  it('handles datetime-local format in date field', async () => {
+    const store = useTransactionsStore()
+    const catId = catStore.categories[0].id
+    await store.addTransaction({
+      amount: 100, type: 'expense', category: catId,
+      date: '2026-03-14T14:30', note: 'test'
+    })
+    // getMonthTransactions uses startsWith prefix, should still work
+    const txs = store.getMonthTransactions(2026, 3)
+    expect(txs).toHaveLength(1)
+    expect(txs[0].date).toBe('2026-03-14T14:30')
+  })
+
+  it('getMonthlySummary works with mixed date formats', async () => {
+    const store = useTransactionsStore()
+    const catId = catStore.categories[0].id
+    await store.addTransaction({ amount: 100, type: 'expense', category: catId, date: '2026-03-01' })
+    await store.addTransaction({ amount: 200, type: 'expense', category: catId, date: '2026-03-02T10:00' })
+    const summary = store.getMonthlySummary(2026, 3)
+    expect(summary.expense).toBe(300)
+  })
+
+  it('getDailyTotals handles datetime-local format', async () => {
+    const store = useTransactionsStore()
+    const catId = catStore.categories[0].id
+    await store.addTransaction({ amount: 100, type: 'expense', category: catId, date: '2026-03-14T14:30' })
+    await store.addTransaction({ amount: 200, type: 'expense', category: catId, date: '2026-03-14' })
+    const daily = store.getDailyTotals(2026, 3)
+    expect(daily[14]).toBe(300)
+  })
 })
