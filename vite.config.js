@@ -2,11 +2,13 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const isTauri = !!process.env.TAURI_ENV_PLATFORM
+
 export default defineConfig({
-  base: '/MoneyMan/',
+  base: isTauri ? '/' : '/MoneyMan/',
   plugins: [
     vue(),
-    VitePWA({
+    ...(!isTauri ? [VitePWA({
       registerType: 'autoUpdate',
       manifest: {
         name: 'MoneyMan',
@@ -21,10 +23,14 @@ export default defineConfig({
           { src: '/MoneyMan/icons/icon-512.png', sizes: '512x512', type: 'image/png' }
         ]
       }
-    })
+    })] : [])
   ],
   optimizeDeps: {
     exclude: ['sql.js']
+  },
+  server: {
+    host: isTauri ? '0.0.0.0' : undefined,
+    strictPort: true,
   },
   test: {
     environment: 'jsdom',

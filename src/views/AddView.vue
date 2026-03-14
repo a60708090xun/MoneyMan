@@ -28,7 +28,7 @@
 
     <div class="form-group">
       <label>日期</label>
-      <input type="date" v-model="form.date" />
+      <input type="datetime-local" v-model="form.date" />
     </div>
 
     <div class="form-group">
@@ -119,7 +119,11 @@ const cardsStore = useCardsStore()
 const templatesStore = useTemplatesStore()
 
 const isEdit = computed(() => !!route.params.id)
-const today = new Date().toISOString().split('T')[0]
+const today = (() => {
+  const now = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+})()
 
 const form = reactive({
   amount: null,
